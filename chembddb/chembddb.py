@@ -589,8 +589,8 @@ def molecule(id):
     mol_data=tuple(zip(*mol_data))
 
     return render_template('molecule.html',mol_data=mol_data,columns=cols,title=options[3])
-def run_config():
-    f = open('./config.dat','r')
+def run_config(input_file):
+    f = open(input_file)
     global cursor, connection, options
     options,subtasks=get_options(f)
     f.close()

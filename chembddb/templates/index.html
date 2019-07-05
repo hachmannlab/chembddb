@@ -1,0 +1,136 @@
+<html lang="en">
+
+<div class='head'>
+<head>
+    <!-- website name -->
+    <title>{{title}}-Search</title>
+    <!-- website heading -->
+    <h2><b><font size='8'>{{title}}</font> </b></h2>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
+    <style>
+
+    </style>
+</head>
+
+</div>
+<body> 
+    <div class="search">
+        <meta charset="UTF-8">
+        <h3 class = "search-table-heading"> Search the database for candidates</h3>
+        <form name='search' action="http://localhost:5000/search" method="post">
+            <div class="search_table">
+            <table class="table table-bordered" border="0" style="align-content: center">
+                <col width="240">
+                <col width="240">
+                <col width="240">
+                <tr>
+                        <td><input id='smiles_search' type ="checkbox" name="smiles_search" value="yes" onclick="document.getElementById('smi').disabled=!this.checked" >&nbsp;&nbsp;Search for SMILES
+                        </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                        <td colspan=2><input id='smi' type="text" name="smiles" class="searchTerm" placeholder="SMILES" style="resize:none; color: black" size='55' disabled ></td>
+                </tr>
+                <tr>
+                        <td><input id='MW' type ="checkbox" name="MW" value="MW" onclick="document.getElementById('from_MW').disabled=!this.checked;document.getElementById('to_MW').disabled=!this.checked" >&nbsp;&nbsp;Molecular Weight in g/mol
+                        </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                        <td><input id='from_MW' type="text" name="MW_from_val" class="searchTerm_left" placeholder="Min" style="resize:none; color: black" size='25' disabled></td>
+                        <td><input id='to_MW' type="text" name="MW_to_val" class="searchTerm_right" placeholder="Max" style="resize:none; color: black" size='25' disabled></td>
+                </tr>
+                {% for row in properties %}
+                <tr>
+                        <td><input id='1' type ="checkbox" name="{{row[1]}}_id" value="{{row[0]}}" onclick="document.getElementById('from_{{row[1]}}').disabled=!this.checked;document.getElementById('to_{{row[1]}}').disabled=!this.checked" >&nbsp;&nbsp;{{row[1]}}
+                        </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                        <td><input id='from_{{row[1]}}' type="text" name="{{row[1]}}_from_val" class="searchTerm_left" placeholder="Min" style="resize:none; color: black" size='25' disabled></td>
+                        <td><input id='to_{{row[1]}}' type="text" name="{{row[1]}}_to_val" class="searchTerm_right" placeholder="Max" style="resize:none; color: black" size='25' disabled></td>
+                    </tr>
+                {% endfor %}
+                <tr>
+                    
+                    <td > 
+                    <input id=2 type='checkbox' name='method' value='method' onclick="document.getElementById('method').disabled=!this.checked;document.getElementById('func').disabled=!this.checked;document.getElementById('basis').disabled=!this.checked;document.getElementById('ff').disabled=!this.checked">&nbsp;&nbsp; Search for properties by Method
+                    </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <td colspan=2>
+                    <select id='method' name='method_name' disabled>
+                    {% for method in methods %}
+                    <option value="{{method}}" size='100'>{{method}}</option>
+                    {% endfor %}
+                </select>
+                    
+                    
+                        <select id='func' name='functional_name' disabled>
+                        {% for func in functionals %}
+                        <option value="{{func[0]}}" size=100>{{func[1]}}</option>
+                        {% endfor %}
+                    </select>
+                    
+                    
+                        <select id='basis' name='basis_set' disabled>
+                            {% for bas in basis %}
+                            <option value="{{bas[0]}}" size=100>{{bas[1]}}</option>
+                            {% endfor %}
+                        </select>
+                        <select id='ff' name='forcefield' disabled>
+                            {% for ff in forcefields %}
+                            <option value="{{ff[0]}}" size=100>{{ff[1]}}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+
+            </table>
+        
+            </br>
+            <!-- <input id='csv' type="checkbox" name='csv' value='csv' onclick="document.getElementById('path').disabled=!this.checked">&nbsp;&nbsp;save as CSV&nbsp;&nbsp;<input id='path' type='text' name='path' class='searchTerm' placeholder='path+name.csv' style="resize:none; color: black" disabled> -->
+
+            <button type="submit" name="search-query" class="btn btn-primary btn">Search</button>
+    </form>
+    <form name='csv' action="" method="post">
+
+            <input id='path' type='text' name='path' class='searchTerm' placeholder='path+name' style="resize:none; color: black">
+            <button type="submit" name="download_csv" class="btn btn-primary btn-md">download csv </button>
+            {{msg}}
+    </form>
+
+</div>
+    </div>
+
+<div class='result'>
+
+{% if data %}
+<form name='orderby' action="" method="post">
+        <select id='property_ordering' name='property_orderby'>
+            {% for cols in columns[2:] %}
+            <option value="{{cols}}" size=100>{{cols}}</option>
+            {% endfor %}
+        </select>
+        <select id='order' name='select_order'>
+            <option value='ascending' size=100>ascending</option>
+            <option value='descending' size=100>descending</option>
+        </select>
+        <button type="submit" name='orderby_property' class='btn btn-primary btn-md'>re-order</button>
+    </form>
+<table class="table table-striped table-bordered table-hover">
+    Number of Results: {{n_res}}
+    {% for cols in columns %}
+    <th>{{cols}}</th>
+    {% endfor %}
+    {% for row in data %}
+
+    <tr style="height: 60px; align-content: center" onclick="window.location='molecule-{{row[0]}}'">
+            
+        {%for r in row%}
+            <td>{{r}}</td>
+        {% endfor %}
+    
+        </tr>
+    
+    {% endfor %}
+
+    {% endif %}
+</table>
+</div>
+
+</body>
+</html>

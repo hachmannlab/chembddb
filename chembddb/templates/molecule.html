@@ -5,8 +5,7 @@
     <!-- website name -->
     <title>{{title}}-Result</title>
     <!-- website heading -->
-    <h2><b><font size='8'>{{title}}</font> </b></h2>
-
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
@@ -35,6 +34,25 @@
             
 </head>
 <body>
+        <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+                <div class="collapse navbar-collapse" id="navbarNav">
+                  <ul class="navbar-nav">
+                    <li class="nav-item ">
+                      <a class="nav-link">Setup </a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link">Insert</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link">Search</a>
+                    </li>
+                    <li class="nav-item active">
+                            <a class="nav-link">Result<span class="sr-only">(current)</span></a>
+                    </li>
+                  </ul>
+                </div>
+              </nav>
+<h3><b><font size='8'>{{title}}</font> </b></h3>
 <div class='Molecule'>
     <div class='row'>
         <div class='col-md-6'>

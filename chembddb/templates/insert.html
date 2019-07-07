@@ -1,0 +1,68 @@
+<html lang="en">
+
+<div class='head'>
+<head>
+    <!-- website name -->
+    <title>{{title}}-Insert</title>
+    <!-- website heading -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
+    <style>
+
+    </style>
+</head>
+
+</div>
+<body> 
+    <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+
+                <div class="collapse navbar-collapse" id="navbarNav">
+                  <ul class="navbar-nav">
+                    <li class="nav-item ">
+                      <a class="nav-link">Setup </a>
+                    </li>
+                    <li class="nav-item active">
+                      <a class="nav-link">Insert <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item ">
+                        <a class="nav-link">Search  </a>
+                    </li>
+                    <li class="nav-item">
+                            <a class="nav-link">Result</a>
+                    </li>
+                  </ul>
+                </div>
+              </nav>
+
+             
+              <h3><b><font size='8'>{{title}}</font> </b></h3>
+            
+              <form name='insert_data_config' enctype=multipart/form-data method='POST'>
+                <div class="form-group">
+                        <label for="smiles">SMILES</label>
+                        <input type="text" name='smiles' class="form-control" id="host" placeholder="SMILES">
+                        <small id="smiles" class="form-text text-muted">Enter name/header of the smiles column in your data (csv) file.</small>
+                      </div>
+                      <div class="form-group">
+                        <label for="Username">Molecule Identifier</label>
+                        <input type="text" name='molecule_identifier' class="form-control" id="molecule_identifier" placeholder="root" >
+                        <small id="MIhelp" class="form-text text-muted">Enter the name/header of any other molecule identifier in your data (csv) file.</small>
+                      </div>
+                    <div class="form-group">
+                      <label for='config_file_label'>Enter the config file (csv). The property names should be the same as the column headers in your data (csv) file</label>
+                      <input name='config_file' type="file" id="config_file">
+                    </div>
+                    <div class="form-group">
+                      <label for="data_file_label">Data file (csv)</label>
+                      <input name='data_file' type="file" id="data_file">
+                    </div>
+                    <button type="submit" name="upload_data" value="Upload" class="btn btn-primary">Upload</button>
+            </form>
+            {{err_msg}}
+            {{success_msg}}
+        </body>
+            </html>
+

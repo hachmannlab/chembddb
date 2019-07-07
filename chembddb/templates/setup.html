@@ -1,0 +1,72 @@
+<html lang="en">
+
+<div class='head'>
+<head>
+    <!-- website name -->
+    <title>Chembddb-Setup</title>
+    <!-- website heading -->
+    <!-- <h2><b><font size='8'>{{title}}</font> </b></h2> -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
+    <script>
+        function get_value(){
+            var val=document.getElementById('dbname').value;
+            return val;
+        }
+    </script>
+</head>
+<body>
+
+        <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+
+                <div class="collapse navbar-collapse" id="navbarNav">
+                  <ul class="navbar-nav">
+                    <li class="nav-item active">
+                      <a class="nav-link">Setup <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link">Insert</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link">Search</a>
+                    </li>
+                    <li class="nav-item">
+                            <a class="nav-link">Result</a>
+                    </li>
+                  </ul>
+                </div>
+              </nav>
+
+              <div class="setup">
+                    <meta charset="UTF-8">
+                    <h3>Setup</h3>
+                    <h5> All of this data will be stored locally. If you change your host url, MySQL username or password find your credentials.dat file and change it accordingly. </h5>
+                    <form name='details' method="post">
+                        <input id='first-time' type ="checkbox" name="first-time" value="yes" onclick="document.getElementById('host').disabled=!this.checked;document.getElementById('username').disabled=!this.checked;document.getElementById('password').disabled=!this.checked" >&nbsp;&nbsp;Check this box if you are a first-time user or you changed your MySQL credentials
+                            <div class="form-group">
+                              <label for="host">Host</label>
+                              <input type="text" name='host' class="form-control" id="host" placeholder="127.0.0.1" disabled>
+                            </div>
+                            <div class="form-group">
+                              <label for="Username">Username</label>
+                              <input type="text" name='username' class="form-control" id="username" placeholder="root" disabled>
+                              <small id="usernamehelp" class="form-text text-muted">Enter your username for MySQL.</small>
+                            </div>
+                            <div class="form-group">
+                                    <label for="password">Password</label>
+                                    <input type="password" name='password' class="form-control" id="password" placeholder="Password" disabled>
+                                    <small id="passwordhelp" class="form-text text-muted">Enter your MySQL password.</small>
+                            </div>
+                            <div class="form-group">
+                                    <label for="dbname">Enter database name and select option:</label>
+                                    <input type="text" name='dbname' class="form-control" id="dbname" placeholder="Name">
+                            </div>
+                            <button type="setup" name='setup' class="btn btn-primary" action="http://localhost:5000/setup">Create</button>
+                            <button type="insert" name='insert' class='btn btn-primary' onclick="window.open('/insert<'+get_value()+'>','_blank')">Insert</button>
+                            <button type="search" name='search-from-setup' class="btn btn-primary" onclick="window.open('/search<'+get_value()+'>','_blank')">Search</button>
+                          </form>
+                          {{err_msg}}
+</body>

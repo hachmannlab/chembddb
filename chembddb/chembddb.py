@@ -5,8 +5,14 @@ import sys
 import pandas as pd
 from copy import deepcopy
 import pybel
+from flask import send_from_directory
 
 app = Flask(__name__)
+# upload_directory='/Users/adi/chembddb-1/'
+upload_directory=os.getcwd()
+app.config['UPLOAD FOLDER']=upload_directory
+
+
 def connect_mysql(host,user,pw):
     """establishes mysql connection based on the credentials provided during setup; any changes in credentials should be made in credentails.dat
 
@@ -99,7 +105,6 @@ def insert(con, cur,db, inputs):
         # n_u=len(inputs['Units list'])
         # n_p=len(inputs['Properties list'])
         # n_m=len(inputs['Methods list'])
-        # n_f=
         if len(inputs['Units list'])!=len(inputs['Properties list'])!=len(inputs['Methods list'])!=len(inputs['Functional list'])!=len(inputs['Basis set list'])!=len(inputs['Forcefield list']):
             tmp_str = 'ERROR: Each property does not have a unit/method specified for it.'
             print_le(tmp_str,'.','List a unit/method for each property. Aborting due to different number of properties and units/methods being provided.')
@@ -119,7 +124,7 @@ def insert(con, cur,db, inputs):
                 pass
             else:
                 entered_list.append(prop)
-                print(entered_list)
+                # print(entered_list)
                 cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
 
         print_l('--Property table has been populated--','./')
@@ -184,6 +189,7 @@ def insert(con, cur,db, inputs):
         except:
             smi_ind=-1
         n_identifiers=len(inputs['Molecule identifier list'])
+        # print(n_identifiers)
         for mol in range(len(data)):
             # data[data.filter(regex='smiles').columns]
             
@@ -219,7 +225,6 @@ def insert(con, cur,db, inputs):
         # print_le('abc','./','abc')
         cur.executemany('INSERT INTO MOLECULE(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
         print_l('--Molecule table has been populated--','./')
-
         # populating the credit table
         # todo: figure out how to deal with the credit/publication
         # cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
@@ -232,7 +237,8 @@ def insert(con, cur,db, inputs):
         # print(data)
         # print(cols)
         data = data[cols]
-
+        # print(data)
+        # print(cols)
         cur.execute('SELECT id,Property_str from Property')
         all_props = cur.fetchall()
         prop_id = dict(map(reversed,all_props))
@@ -254,12 +260,13 @@ def insert(con, cur,db, inputs):
             cur.execute("SELECT id,Molecule_identifier from Molecule")
 
         all_mols = cur.fetchall()
+        # print(all_mols)
         molecule_id = dict(map(reversed,all_mols))
         # print(functional_id)
         # print(inputs['Functional list'][inputs['Methods list'].index()])
         # print(properties)
         if smi_ind !=-1:
-            data['molecule_id']=data[data.columns[-1]].apply(lambda a: molecule_id[pybel.readstring('smi',a).write('can').strip()])
+            data['molecule_id']=data['smiles'].apply(lambda a: molecule_id[pybel.readstring('smi',a).write('can').strip()])
         else:
             data['molecule_id']=data[data.columns[-1]].apply(lambda a: molecule_id[a])
 
@@ -277,7 +284,6 @@ def insert(con, cur,db, inputs):
         data.drop('variable',1,inplace=True)
         cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
         con.commit()
-        cur.close()
 
 def get_options(config):
     """ 
@@ -427,11 +433,14 @@ def search():
         from_form = from_form.to_dict(flat=False)
         prop_counter=0
         keys=[i for i in from_form if '_id' in i]
-
+        min_max_err=False
+        min_max_prop=[]
         for k in keys:
             prop_id=int(from_form[k][0])
             from_val=float(from_form[k[:-3]+'_from_val'][0])
             to_val=float(from_form[k[:-3]+'_to_val'][0])
+            if from_val > to_val:
+                min_max_err=True
             sql = sql[:sql.rfind('where')+6] + 'molecule_id in (select molecule_id from value where value.property_id={0} and value.num_value>{1} and value.num_value<{2}) and '.format(prop_id,from_val,to_val) + sql[sql.rfind('where')+6:]
         
         if len(keys)!=0:
@@ -476,7 +485,6 @@ def search():
             else:
                 sql=sql+' and Value.forcefield_id={}'.format(from_form['forcefield'][0])
         sql=sql+';'
-        print(sql)
         cursor.execute(sql)
         data1=cursor.fetchall() 
         data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
@@ -496,34 +504,53 @@ def search():
         #     data[k]=v
         data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
         data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-        print(data)
-        data=data.pivot(index='ID_SMI',columns='Property')
-        data=data['Value'].reset_index()
-        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-        columns=['ID','SMILES']
-        for i in data.columns[1:-2]:
-            columns.append(i)
-        data=data[columns]
-        columns=[c.replace('(NA/NA)','') for c in columns]
-        columns=[c.replace('(NA)','') for c in columns]
-        if 'smiles_search' in from_form:
-            # sql=sql+" and molecule.SMILES_str like \'{}\'".format('%'+from_form['smiles'][0]+'%')
-            smarts = pybel.Smarts(from_form['smiles'][0])
-            for i in range(len(data)):
-                mol = pybel.readstring("smi",data.loc[i]['SMILES'])
-                smarts.obsmarts.Match(mol.OBMol)
-                if len(smarts.findall(mol))==0:
-                    data.drop(i,0,inplace=True)
-        search_results=data
-        search_results.columns=columns
         # print(data)
-        # if 'csv' in from_form:
-        #     search_results.to_csv(from_form['path'][0],index=None)
-
+        data=data.pivot(index='ID_SMI',columns='Property')
+        if len(data)>0:
+            data=data['Value'].reset_index()
+            data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+            columns=['ID','SMILES']
+            for i in data.columns[1:-2]:
+                columns.append(i)
+            data=data[columns]
+            columns=[c.replace('(NA/NA)','') for c in columns]
+            columns=[c.replace('(NA)','') for c in columns]
+            try:
+                if 'smiles_search' in from_form:
+                    # sql=sql+" and molecule.SMILES_str like \'{}\'".format('%'+from_form['smiles'][0]+'%')
+                    smarts = pybel.Smarts(from_form['smiles'][0])
+                    # print(smarts)
+                    for i in range(len(data)):
+                        mol = pybel.readstring("smi",data.loc[i]['SMILES'])
+                        smarts.obsmarts.Match(mol.OBMol)
+                        if len(smarts.findall(mol))==0:
+                            data.drop(i,0,inplace=True)
+                search_results=data
+                search_results.columns=columns
+                if len(data)==0:
+                    n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                else:
+                    n_res = str(len(data))
+                # print(data)
+                # if 'csv' in from_form:
+                #     search_results.to_csv(from_form['path'][0],index=None)
+            except:
+                n_res='Invalid Smarts entered'
+                print_l('Invalid Smarts entered','.')
+                data=pd.DataFrame()
+        else:
+            if min_max_err==True:
+                print_l('Min value entered is > Max value entered for a property','./')
+                n_res = 'Min value entered is > Max value entered for a property' 
+                columns=''
+            else:               
+                print_l('No such candidates exist in your database','./')
+                n_res = 'Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                columns=''
         data = tuple(data.itertuples(index=False,name=None))
         is_download=False
         to_order=False
-        n_res = len(data)
+        
         print_l('Preparing the results...','./')
         return render_template('index.html', data = data,properties=properties,columns=columns,title=options[3],methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields)
     elif 'download_csv' in request.form:
@@ -540,7 +567,7 @@ def search():
     elif 'orderby_property' in request.form:
         from_form=request.form
         from_form = from_form.to_dict(flat=False)
-        print(search_results)
+        # print(search_results)
         if 'ascending' in from_form['select_order']:
             search_results=search_results.sort_values(by=from_form['property_orderby'])
         else:
@@ -564,12 +591,12 @@ def molecule(id):
     mol_data=pd.DataFrame(list(result),columns=['ID','MW','SMILES','Identifier','Property','Unit','Method','Functional','Basis_set','Forcefield','Value'])
     mol_data['ALL']=mol_data['ID'].astype(str) +',;'+mol_data['MW'].astype(str)+',;'+mol_data['SMILES']+',;'+mol_data['Identifier']
     mol_data['Property(Unit)']=mol_data['Property']+' ('+mol_data['Unit']+')\n'+'- '+mol_data['Method']+'('+mol_data['Functional']+'/'+mol_data['Basis_set']+')('+mol_data['Forcefield']+')'
-    print(mol_data)
+    # print(mol_data)
     mol_data=mol_data[['ALL','Property(Unit)','Value']]
-    print(mol_data)
+    # print(mol_data)
     mol_data=mol_data.pivot(index='ALL',columns='Property(Unit)')
     mol_data=mol_data['Value'].reset_index()
-    print(mol_data)
+    # print(mol_data)
     mol_data[['ID','MW','SMILES','Identifier']]=mol_data['ALL'].str.split(',;',expand=True)
     
     # mol_data[['Property(Unit)','Method']]=mol_data['Property(Unit)'].str.split('-',expand=True)
@@ -581,14 +608,21 @@ def molecule(id):
     mol_ob = pybel.readstring("smi",mol_data['SMILES'][0])
     mymol = pybel.readstring("smi", mol_ob.write("can"))
     mymol.make3D(forcefield='mmff94', steps=50)
-    mymol.write('xyz', './static/xyz/mol_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
+    # print(os.listdir())
+    mymol.write('xyz',app.config['UPLOAD FOLDER']+'/mol_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
+    # mymol.write('xyz',app.config['UPLOAD FOLDER']+'mol.xyz',overwrite=True)
+    # f = open('./mol_{}.xyz'.format(mol_data['ID'][0]))
     cols=[c.replace('(NA/NA)','') for c in cols]
     cols=[c.replace('(NA)','') for c in cols]
     mol_data = tuple(mol_data.itertuples(index=False,name=None))
     mol_data = (tuple(cols[:]),)+mol_data
     mol_data=tuple(zip(*mol_data))
-
     return render_template('molecule.html',mol_data=mol_data,columns=cols,title=options[3])
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD FOLDER'],filename)
+
 def run_config(input_file):
     f = open(input_file)
     global cursor, connection, options
@@ -607,5 +641,3 @@ def run_config(input_file):
     
     if 'search' in tasks:
         app.run(debug=True)
-
-

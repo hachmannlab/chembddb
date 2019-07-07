@@ -118,7 +118,7 @@
     {% endfor %}
     {% for row in data %}
 
-    <tr style="height: 60px; align-content: center" onclick="window.location='molecule-{{row[0]}}'">
+    <tr style="height: 60px; align-content: center" onclick="window.open('molecule-{{row[0]}}','_blank')">
             
         {%for r in row%}
             <td>{{r}}</td>
@@ -127,7 +127,8 @@
         </tr>
     
     {% endfor %}
-
+    {% else %}
+    {{n_res}}
     {% endif %}
 </table>
 </div>

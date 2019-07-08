@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, request
+from flask import Flask, render_template, url_for, request,redirect
 import pymysql
 import os
 import sys
@@ -7,6 +7,8 @@ from copy import deepcopy
 import pybel
 from flask import send_from_directory
 import numpy as np
+import time
+
 
 app = Flask(__name__)
 # upload_directory='/Users/adi/chembddb-1/'
@@ -160,9 +162,13 @@ def print_le(sentence, output_dir, msg="Aborting the run"):
     logfile.write(sentence+"\n")
     error_file.write(sentence+"\n")
     sys.exit(msg)
+@app.route('/')
+def begin():
+    return redirect(url_for('setup'))
 
 @app.route('/setup',methods=['GET','POST'])
 def setup():
+    db=''
     if request.method=='POST' and 'setup' in request.form:
         cred=request.form
         cred = cred.to_dict(flat=False)
@@ -202,12 +208,11 @@ def setup():
             cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk4` FOREIGN KEY (`basis_id`) REFERENCES `Basis_set`(`id`);'%db)
             cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk5` FOREIGN KEY (`forcefield_id`) REFERENCES `Forcefield`(`id`);'%db)
             # cur.ex ecute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk3` FOREIGN KEY (`credit_id`) REFERENCES `Credit`(`id`);'%db)
-            print_l('--The database %s has been setup--'%db,'.')
+            return render_template('setup.html',dbname=db,success_msg='The database has been created.')
         else:
-            tmp_str = 'ERROR: Database with name %s already exists'%db
-            print_le(tmp_str,'.','Change the database name in the config file. Aborting due to improper naming of the database.')
+            return render_template('setup.html',dbname=db,err_msg='Database already exists.')
 
-    return render_template('setup.html')
+    return render_template('setup.html',dbname=db)
 
 @app.route('/insert<db>',methods=['GET','POST'])
 def insert(db):
@@ -396,7 +401,7 @@ def insert(db):
                         molecule_id = dict(map(reversed,all_mols))
                         data.drop(cols[-2:],1,inplace=True)
                         data = data.melt('molecule_id')
-                        print(data)
+                        # print(data)
                         data['property_id']=data['variable'].apply(lambda a: prop_id[a])
                         # d[df.loc[df['properties'].tolist().index('Density')]['methods']]
                         # d[df.loc[df['var'].index.tolist()[1]]['methods']]
@@ -408,7 +413,7 @@ def insert(db):
                         cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
                         print('value table populated')
                         conn.commit() 
-                        
+                        time.sleep(30)
                         return render_template('insert.html',title=db,success_msg='The database has been successfully populated')
         return render_template('insert.html',title=db)
 
@@ -438,7 +443,7 @@ def search(db):
         is_download=True
         to_order=True
         # print(results)
-        print_l('Preparing the search page...','./')
+        # print_l('Preparing the search page...','./')
         for i in results:
             methods.append(i[1])
         # print(methods)
@@ -452,6 +457,7 @@ def search(db):
             keys=[i for i in from_form if '_id' in i]
             min_max_err=False
             min_max_prop=[]
+            # print(from_form)
             for k in keys:
                 prop_id=int(from_form[k][0])
                 from_val=float(from_form[k[:-3]+'_from_val'][0])
@@ -464,6 +470,10 @@ def search(db):
                 sql=sql[:-5]
 
             if 'MW' in from_form:
+                from_val=float(from_form['MW_from_val'][0])
+                to_val=float(from_form['MW_to_val'][0])
+                if from_val > to_val:
+                    min_max_err=True
                 if len(keys)!=0:
                     sql=sql+" and molecule.MW > {} and molecule.MW < {}".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
                 else:
@@ -531,7 +541,9 @@ def search(db):
                     columns.append(i)
                 data=data[columns]
                 columns=[c.replace('(NA/NA)','') for c in columns]
+                columns=[c.replace('(na/na)','') for c in columns]
                 columns=[c.replace('(NA)','') for c in columns]
+                columns=[c.replace('(na)','') for c in columns]
                 try:
                     if 'smiles_search' in from_form:
                         # sql=sql+" and molecule.SMILES_str like \'{}\'".format('%'+from_form['smiles'][0]+'%')
@@ -553,22 +565,22 @@ def search(db):
                     #     search_results.to_csv(from_form['path'][0],index=None)
                 except:
                     n_res='Invalid Smarts entered'
-                    print_l('Invalid Smarts entered','.')
+                    # print_l('Invalid Smarts entered','.')
                     data=pd.DataFrame()
             else:
                 if min_max_err==True:
-                    print_l('Min value entered is > Max value entered for a property','./')
-                    n_res = 'Min value entered is > Max value entered for a property' 
+                    # print_l('Min value entered is > Max value entered for a property','./')
+                    n_res = 'Min value entered is > Max value entered for one of the fields above.' 
                     columns=''
                 else:               
-                    print_l('No such candidates exist in your database','./')
-                    n_res = 'Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                    # print_l('No such candidates exist in your database','./')
+                    n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
                     columns=''
             data = tuple(data.itertuples(index=False,name=None))
             is_download=False
             to_order=False
             
-            print_l('Preparing the results...','./')
+            # print_l('Preparing the results...','./')
             return render_template('index.html', data = data,properties=properties,columns=columns,title=db,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields)
         elif 'download_csv' in request.form:
             # print(is_download)
@@ -576,11 +588,11 @@ def search(db):
             # print(from_form)
             from_form = from_form.to_dict(flat=False)
             # print(search_results)
-            search_results.to_csv(from_form['path'][0]+'.csv',index=None)
-            msg='Results have been downloaded as {}.csv'.format(from_form['path'][0])
+            search_results.to_csv('results.csv',index=None)
+            msg='Results have been downloaded as results.csv'
             data = tuple(search_results.itertuples(index=False,name=None))
-            print_l('The results have been downloaded in {}.csv ...'.format(from_form['path'][0]),'./')
-            return render_template('index.html',data = data,properties=properties,columns=search_results.columns,title=db,methods=methods,msg=msg,is_download=is_download)
+            # print_l('The results have been downloaded in {}.csv ...'.format(from_form['path'][0]),'./')
+            return render_template('index.html',data = data,properties=properties,columns=search_results.columns,title=db,methods=methods,msg=msg,n_res=len(data),functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download)
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
@@ -644,7 +656,8 @@ def molecule(dbid):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD FOLDER'],filename)
 
-def run_config(option):
+def run_config():
+    print('Open http://localhost:5000/setup')
     app.run(debug=True)
     # f = open(input_file)
     # global cursor, connection, options

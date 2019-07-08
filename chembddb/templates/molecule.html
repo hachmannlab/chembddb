@@ -1,108 +1,98 @@
 <html lang="en">
-
-<div class='head'>
-<head>
-    <!-- website name -->
-    <title>{{title}}-Result</title>
-    <!-- website heading -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
-
-    <script type="text/javascript" src="/static/jsmol/JSmol.min.js"></script>
-
-        <script type="text/javascript" src="/static/jsmol/js/JSmolCore.js"></script>
-        <script type="text/javascript" src="/static/jsmol/js/j2sjmol.js"></script>
-        <script type="text/javascript" src="/static/jsmol/js/JSmol.js"></script>
-        <script type="text/javascript" src="/static/jsmol/js/JSmolApplet.js"></script>
-        <script type="text/javascript" src="/static/jsmol/js/JSmolApi.js"></script>
-        <script type="text/javascript">
-    
-            var myInfo1 = {
-            width: 400,
-            height: 400,
-            serverURL: "http://propka.ki.ku.dk/~jhjensen/jsmol/jsmol.php ",
-            use : 'HTML5',
-            j2sPath: "/static/jsmol/j2s/",
-            console: "jmolApplet0_infodiv",
-            debug: false,
-            addSelectionOptions: false,
-            }
-        </script>
-            
-</head>
-<body>
-        <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
-                <div class="collapse navbar-collapse" id="navbarNav">
-                  <ul class="navbar-nav">
-                    <li class="nav-item ">
-                      <a class="nav-link">Setup </a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link">Insert</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link">Search</a>
-                    </li>
-                    <li class="nav-item active">
-                            <a class="nav-link">Result<span class="sr-only">(current)</span></a>
-                    </li>
-                  </ul>
-                </div>
-              </nav>
-<h3><b><font size='8'>{{title}}</font> </b></h3>
-<div class='Molecule'>
-    <div class='row'>
-        <div class='col-md-6'>
-                <table class="table table-striped table-bordered">
-                        {% for mol in mol_data %}
-                        <tr style="height: 60px; align-content: center">
-                            <th>{{mol[0]}}</th>
-                            <td>{{mol[1]}}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-        </div>
-        <div class='col-md-6'>
-                <div class='row' >
-                        <script type = "text/javascript">
-                            var jmolApplet0;
-                            jmolApplet0 = Jmol.getApplet("jmolApplet0", myInfo1)
-                            Jmol.script(jmolApplet0, "background black; load '/uploads/mol_{{mol_data[0][1]}}.xyz'; cpk 20%; wireframe .15; dots on; rotate;")
-                        </script>
-                    </div>
-
-                    &nbsp;
-                    <div class='row'>
-                    <form method="post" action=".">
-                <a href="javascript:Jmol.script(jmolApplet0,'set antialiasDisplay false')">Faster</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'set antialiasDisplay true')">Sharper</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'select *;cartoons off;spacefill only')">Spacefill</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'select *;cartoons off;wireframe -0.1')">Wire</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'select *;cartoons off;spacefill 23%;wireframe 0.15')">Ball&amp;Stick</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'select protein or nucleic;cartoons only')">Cartoons</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'set cartoonFancy true')">Fancy</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'set cartoonFancy false')">Not</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'set cartoonFancy false;set hermitelevel 0')">Flat</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'color property atomno')">Color Atomno</a>&nbsp;<br>
-                <a href="javascript:Jmol.script(jmolApplet0,'color cpk')">Color cpk</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'color structure')">Color Structure</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'select *;isosurface vdw')">Isosurface vdw</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'isosurface delete')">Reset</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'if ({atomno < 10}.partialcharge == 0){calculate partialcharge};isosurface vdw map mep')">mep</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'isosurface translucent')">Translucent</a>&nbsp;
-                <a href="javascript:Jmol.script(jmolApplet0,'isosurface opaque')">Opaque</a>&nbsp;
-                <br>
-                Rotate <a href="javascript:Jmol.script(jmolApplet0,'rotate')">On</a>
-                <a href="javascript:Jmol.script(jmolApplet0,'rotate false')">Off</a>,
-                Labels <a href="javascript:Jmol.script(jmolApplet0,'if (_fileType == &quot;Pdb&quot;){select *.CA;label %n%r}else{select *;label %a};select *;')">On</a>
-                <a href="javascript:Jmol.script(jmolApplet0,'select *;labels off')">Off</a>
-                            </form>
+   <head>
+      <title>{{title}}-Result</title>
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+      <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
+      <script type="text/javascript" src="/static/jsmol/JSmol.min.js"></script>
+      <script type="text/javascript" src="/static/jsmol/js/JSmolCore.js"></script>
+      <script type="text/javascript" src="/static/jsmol/js/j2sjmol.js"></script>
+      <script type="text/javascript" src="/static/jsmol/js/JSmol.js"></script>
+      <script type="text/javascript" src="/static/jsmol/js/JSmolApplet.js"></script>
+      <script type="text/javascript" src="/static/jsmol/js/JSmolApi.js"></script>
+        <script type="text/javascript">
+         var myInfo1 = {
+         width: 400,
+         height: 400,
+         serverURL: "http://propka.ki.ku.dk/~jhjensen/jsmol/jsmol.php ",
+         use : 'HTML5',
+         j2sPath: "/static/jsmol/j2s/",
+         console: "jmolApplet0_infodiv",
+         debug: false,
+         addSelectionOptions: false,
+         }
+      </script>
+   </head>
+   <body>
+      <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+         <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+               <li class="nav-item ">
+                  <a class="nav-link">Setup </a>
+               </li>
+               <li class="nav-item">
+                  <a class="nav-link">Insert</a>
+               </li>
+               <li class="nav-item">
+                  <a class="nav-link">Search</a>
+               </li>
+               <li class="nav-item active">
+                  <a class="nav-link">Result<span class="sr-only">(current)</span></a>
+               </li>
+            </ul>
+         </div>
+      </nav>
+      <div class='Molecule'>
+         <h3><b><font size='8'>{{title}}</font> </b></h3>
+         <div class='row'>
+            <div class='col-md-6'>
+               <table class="table table-striped table-bordered">
+                  {% for mol in mol_data %}
+                  <tr style="height: 60px; align-content: center">
+                     <th>{{mol[0]}}</th>
+                     <td>{{mol[1]}}</td>
+                  </tr>
+                  {% endfor %}
+               </table>
             </div>
-        </div>
-    </div>
-    </div>
-       
-    </body>
+            <div class='col-md-6'>
+               <div class='row' >
+                   <script type = "text/javascript">
+                     var jmolApplet0;
+                     jmolApplet0 = Jmol.getApplet("jmolApplet0", myInfo1)
+                     Jmol.script(jmolApplet0, "background black; load '/uploads/mol_{{mol_data[0][1]}}.xyz'; cpk 20%; wireframe .15; dots on; rotate;")
+                  </script>
+               </div>
+               <div class='row'>
+                  <form method="post" action=".">
+                     <a href="javascript:Jmol.script(jmolApplet0,'set antialiasDisplay false')">Faster</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'set antialiasDisplay true')">Sharper</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'select *;cartoons off;spacefill only')">Spacefill</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'select *;cartoons off;wireframe -0.1')">Wire</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'select *;cartoons off;spacefill 23%;wireframe 0.15')">Ball&amp;Stick</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'select protein or nucleic;cartoons only')">Cartoons</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'set cartoonFancy true')">Fancy</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'set cartoonFancy false')">Not</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'set cartoonFancy false;set hermitelevel 0')">Flat</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'color property atomno')">Color Atomno</a> <br>
+                     <a href="javascript:Jmol.script(jmolApplet0,'color cpk')">Color cpk</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'color structure')">Color Structure</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'select *;isosurface vdw')">Isosurface vdw</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'isosurface delete')">Reset</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'if ({atomno < 10}.partialcharge == 0){calculate partialcharge};isosurface vdw map mep')">mep</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'isosurface translucent')">Translucent</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'isosurface opaque')">Opaque</a>
+                     <br>
+                     Rotate <a href="javascript:Jmol.script(jmolApplet0,'rotate')">On</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'rotate false')">Off</a>,
+                     Labels <a href="javascript:Jmol.script(jmolApplet0,'if (_fileType == &quot;Pdb&quot;){select *.CA;label %n%r}else{select *;label %a};select *;')">On</a>
+                     <a href="javascript:Jmol.script(jmolApplet0,'select *;labels off')">Off</a>
+                  </form>
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>

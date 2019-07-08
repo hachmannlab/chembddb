@@ -1,6 +1,5 @@
 <html lang="en">
 
-<div class='head'>
 <head>
     <!-- website name -->
     <title>Chembddb-Setup</title>
@@ -62,11 +61,24 @@
                             </div>
                             <div class="form-group">
                                     <label for="dbname">Enter database name and select option:</label>
-                                    <input type="text" name='dbname' class="form-control" id="dbname" placeholder="Name">
+                                    <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
                             </div>
                             <button type="setup" name='setup' class="btn btn-primary" action="http://localhost:5000/setup">Create</button>
                             <button type="insert" name='insert' class='btn btn-primary' onclick="window.open('/insert<'+get_value()+'>','_blank')">Insert</button>
                             <button type="search" name='search-from-setup' class="btn btn-primary" onclick="window.open('/search<'+get_value()+'>','_blank')">Search</button>
                           </form>
-                          {{err_msg}}
+                          {% if err_msg %}
+                          <div class="alert alert-danger" role="alert">
+                                <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                                {{err_msg}}
+                              </div>
+                          {% endif %}
+                          {% if success_msg %}
+                          <div class="alert alert-success" role="alert">
+                                <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                                {{success_msg}}
+                              </div>
+                          {% endif %}
+                          
 </body>
+</html>

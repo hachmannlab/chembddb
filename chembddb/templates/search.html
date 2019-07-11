@@ -2,7 +2,7 @@
 
 <head>
     <!-- website name -->
-    <title>Chembddb-Create</title>
+    <title>Chembddb-Search</title>
     <!-- website heading -->
     <!-- <h2><b><font size='8'>{{title}}</font> </b></h2> -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -27,13 +27,13 @@
                           <a class="nav-link">Connect</a>
                         </li>
                     <li class="nav-item active">
-                      <a class="nav-link">Create <span class="sr-only">(current)</span></a>
+                      <a class="nav-link" href='/setup' target='_blank'>Create </a>
                     </li>
                     <li class="nav-item">
                       <a class="nav-link" href='/insert' target='_blank'>Insert</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href='/search' target='_blank'>Search</a>
+                        <a class="nav-link">Search<span class="sr-only">(current)</span></a>
                     </li>
                     <li class="nav-item">
                             <a class="nav-link">Result</a>
@@ -54,13 +54,13 @@
 
               <div class="setup">
                     <meta charset="UTF-8">
-                    <h3>Setup</h3>
+                    <h3>Search</h3>
                             <form name='dbname' method='POST'>
                             <div class="form-group">
                                     <label for="dbname">Enter database name and select option:</label>
                                     <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
                             </div>
-                            <button type="create" name='create' class="btn btn-primary" action="http://localhost:5000/setup">Create</button>
+                            <button type="create" name='create' class="btn btn-primary" onclick="window.open('/search_db<'+get_value()+'>','_blank')">Search</button>
                             </form>
                           {% if err_msg %}
                           <div class="alert alert-danger" role="alert">

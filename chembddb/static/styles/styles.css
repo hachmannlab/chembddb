@@ -7,7 +7,7 @@ th, td {
     text-align: left;    
         }
 
-    .search,.result,.setup,.insert,.molecule{
+    .search,.result,.setup,.insert,.molecule,.delete{
     margin-left: 50px;
     margin-right: 50px;
     }

@@ -71,15 +71,15 @@ def setup():
             cur.execute('CREATE TABLE `%s`.`Functional`(`id` INT NOT NULL AUTO_INCREMENT,`name` VARCHAR(100) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
             cur.execute('CREATE TABLE `%s`.`Basis_set`(`id` INT NOT NULL AUTO_INCREMENT,`name` VARCHAR(100) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
             cur.execute('CREATE TABLE `%s`.`Forcefield`(`id` INT NOT NULL AUTO_INCREMENT,`name` VARCHAR(100) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
-            # cur.execute('CREATE TABLE `%s`.`Topology`(`id` INT NOT NULL AUTO_INCREMENT,`geometry` VARCHAR(100) NOT NULL,`symbols` VARCHAR(100),`method` VARCHAR(100),`steps` INT,PRIMARY KEY (`id`));'%db)
+            cur.execute('CREATE TABLE `%s`.`Topology`(`id` INT NOT NULL AUTO_INCREMENT,`geometry` VARCHAR(100) NOT NULL,`symbols` VARCHAR(100),`method` VARCHAR(100),`steps` INT,PRIMARY KEY (`id`));'%db)
             cur.execute('CREATE TABLE `%s`.`Value`(`id` INT NOT NULL AUTO_INCREMENT,`num_value` FLOAT NOT NULL,`model_id` INT NOT NULL,`property_id` INT NOT NULL,`molecule_id` INT NOT NULL,`functional_id` INT, `basis_id` INT,`forcefield_id` INT,PRIMARY KEY (`id`));'%db)
 
-            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk0` FOREIGN KEY (`model_id`) REFERENCES `Model`(`id`);'%db)
-            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk1` FOREIGN KEY (`property_id`) REFERENCES `Property`(`id`);'%db)
-            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk2` FOREIGN KEY (`molecule_id`) REFERENCES `Molecule`(`id`);'%db)
-            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk3` FOREIGN KEY (`functional_id`) REFERENCES `Functional`(`id`);'%db)
-            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk4` FOREIGN KEY (`basis_id`) REFERENCES `Basis_set`(`id`);'%db)
-            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk5` FOREIGN KEY (`forcefield_id`) REFERENCES `Forcefield`(`id`);'%db)
+            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk0` FOREIGN KEY (`model_id`) REFERENCES `Model`(`id`) on DELETE CASCADE;'%db)
+            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk1` FOREIGN KEY (`property_id`) REFERENCES `Property`(`id`) on DELETE CASCADE;'%db)
+            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk2` FOREIGN KEY (`molecule_id`) REFERENCES `Molecule`(`id`) on DELETE CASCADE;'%db)
+            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk3` FOREIGN KEY (`functional_id`) REFERENCES `Functional`(`id`) on DELETE CASCADE;'%db)
+            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk4` FOREIGN KEY (`basis_id`) REFERENCES `Basis_set`(`id`) on DELETE CASCADE;'%db)
+            cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk5` FOREIGN KEY (`forcefield_id`) REFERENCES `Forcefield`(`id`) on DELETE CASCADE;'%db)
             cur.execute('show databases;')
             all_dbs=cur.fetchall()
             # cur.ex ecute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk3` FOREIGN KEY (`credit_id`) REFERENCES `Credit`(`id`);'%db)
@@ -544,6 +544,89 @@ def molecule(dbid):
     mol_data=tuple(zip(*mol_data))
     db=db.replace('_',' ')
     return render_template('molecule.html',mol_data=mol_data,columns=cols,title=db,all_dbs=all_dbs)
+
+@app.route('/delete',methods=['GET','POST'])
+def delete():
+    cur.execute('show databases;')
+    all_dbs=cur.fetchall()
+    details=request.form
+    details=details.to_dict(flat=True)
+    print(details)
+    if 'dbname' in details:
+        # print(basis_sets)
+        dbname=details['dbname']
+        cur.execute('use {};'.format(dbname))
+        cur.execute('Select * from Property')
+        properties=cur.fetchall()
+        cur.execute('Select id,method_name from Model')
+        results=cur.fetchall()
+        cur.execute("Select * from Functional")
+        functionals=cur.fetchall()
+        cur.execute("Select * from basis_set")
+        basis_sets=cur.fetchall()
+        cur.execute("Select * from forcefield")
+        forcefields=cur.fetchall()
+        methods=[]
+        for i in results:
+            methods.append(i[1])
+    if 'submit' in details:
+        return render_template('delete.html',data=True,dbname=dbname,properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs)
+    elif 'search-query' in details:
+
+        if 'exampleRadios' not in details:
+            cur.execute('drop database {}'.format(details['dbname']))
+            print('done')
+            cur.execute('show databases;')
+            all_dbs=cur.fetchall()
+            return render_template('delete.html',data=True,properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='database {} deleted'.format(details['dbname']))
+
+        elif details['exampleRadios']=='option1':
+            if details['MW']!='':
+                mw_from=details['MW_from_val']
+                mw_to=details['MW_to_val']
+
+        else:
+            cur.execute('USE {};'.format(details['dbname']))
+            keys=[i for i in details if '_id' in i]
+            # find molecule id if smiles_search in details
+            # find MW from and to
+            
+            for k in keys:
+                prop_id=int(details[k][0])
+                print(prop_id)
+                if details[k[:-3]+'_from_val']=='' and details[k[:-3]+'_to_val']=='':
+                    print('here')
+                    sql='DELETE FROM Property WHERE id={};'.format(prop_id)
+                    print(sql)
+                    cur.execute(sql)
+                    cur.execute('use {};'.format(dbname))
+                    cur.execute('Select * from Property')
+                    properties=cur.fetchall()
+                    cur.execute('Select id,method_name from Model')
+                    results=cur.fetchall()
+                    cur.execute("Select * from Functional")
+                    functionals=cur.fetchall()
+                    cur.execute("Select * from basis_set")
+                    basis_sets=cur.fetchall()
+                    cur.execute("Select * from forcefield")
+                    forcefields=cur.fetchall()
+                    methods=[]
+                    for i in results:
+                        methods.append(i[1])
+                else:
+                    from_val=float(details[k[:-3]+'_from_val'])
+                    print(from_val)
+                    to_val=float(details[k[:-3]+'_to_val'])
+                    print(to_val)
+                    if from_val > to_val:
+                        return render_template('delete.html',data=True, dbname=details['dbname'],properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,err_msg='Minimum value for one of the properties is greater than the maximum value for it.')
+                    else:
+                        sql='DELETE FROM Value WHERE property_id={} and num_value > {} and num_value < {};'.format(prop_id,from_val,to_val)
+                        print(sql)
+                        cur.execute(sql)
+        return render_template('delete.html',data=True, dbname=details['dbname'],properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='Deleted from database {}.'.format(details['dbname']))
+    else:
+        return render_template('delete.html',all_dbs=all_dbs)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):

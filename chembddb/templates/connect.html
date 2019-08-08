@@ -38,6 +38,9 @@
                     <li class="nav-item">
                             <a class="nav-link">Result</a>
                     </li>
+                    <li class="nav-item">
+                      <a class="nav-link">Delete</a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                           All Databases
@@ -55,7 +58,7 @@
               <div class="setup">
                     <meta charset="UTF-8">
                     <h3>Connect</h3>
-                    <!-- <h5> All of this data will be stored locally. If you change your host url, MySQL username or password find your credentials.dat file and change it accordingly. </h5> -->
+                    <!-- <h5> All of this data will be  stored locally. If you change your host url, MySQL username or password find your credentials.dat file and change it accordingly. </h5> -->
                     <form name='details' method="post">
                         <!-- <input id='not-first-time' type ="checkbox" name="first-time" value="yes" onclick="document.getElementById('host').disabled=!this.checked;document.getElementById('username').disabled=!this.checked;document.getElementById('password').disabled=!this.checked" >&nbsp;&nbsp;Check this box if you do not a credentials.dat file in your current working directory.  -->
                             <div class="form-group">
@@ -92,6 +95,7 @@
                             <a href='/setup' target='_blank'><button type="setup" name='setup' class="btn btn-primary" >Create</button></a>
                             <a href='/insert' target='_blank'><button type="insert" name='insert' class='btn btn-primary' >Insert</button></a>
                             <a href='/search' target='_blank'><button type="search" name='search' class="btn btn-primary" >Search</button></a>
+                            <a href='/delete' target='_blank'><button type="delete" name='search' class="btn btn-primary" >Delete</button></a>
                             <!-- </form> -->
                           {% endif %}
                           

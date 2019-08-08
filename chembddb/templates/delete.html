@@ -1,0 +1,196 @@
+<html lang="en">
+
+<div class='head'>
+<head>
+    <!-- website name -->
+    <title>Chembddb-Delete</title>
+    <!-- website heading -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
+    <script>
+        function get_value(){
+            var val=document.getElementsByName('exampleRadios');
+       
+            if(val[0].checked){
+              document.getElementById('smiles_search').disabled=false;
+              document.getElementById('MW').disabled=false;
+              document.getElementById('2').disabled=true;
+              len = document.querySelectorAll('[id^="propid-"]').length
+              for(p=0;p<len;p++){
+                document.querySelectorAll('[id^="propid-"]')[p].disabled=true;
+                document.querySelectorAll('[id^="propid-"]')[p].checked=false;
+              }
+            }
+            else if(val[1].checked){
+              document.getElementById('smiles_search').disabled=true;
+              document.getElementById('smiles_search').checked=false;
+              document.getElementById('MW').disabled=true;
+              document.getElementById('MW').checked=false;
+              document.getElementById('2').disabled=false;
+              len = document.querySelectorAll('[id^="propid-"]').length
+              for(p=0;p<len;p++){
+                document.querySelectorAll('[id^="propid-"]')[p].disabled=false;
+              }
+            }
+        }
+    </script>
+</head>
+
+</div>
+<body> 
+    <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+
+                <div class="collapse navbar-collapse" id="navbarNav">
+                  <ul class="navbar-nav">
+                    <li class="nav-item ">
+                      <a class="nav-link">Connect </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href='/setup' target='_blank'>Create</a>
+                      </li>
+                    <li class="nav-item ">
+                      <a class="nav-link" href='/insert' target='_blank'>Insert</a>
+                    </li>
+                    <li class="nav-item ">
+                        <a class="nav-link" href='/search' target='_blank'>Search  </a>
+                    </li>
+                    <li class="nav-item">
+                            <a class="nav-link">Result</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link"><span class="sr-only">(current)</span> Delete</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                          All Databases
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                          {% for adbs in all_dbs %}
+                          <a class="dropdown-item" href="#">{{adbs[0]}}</a>
+                          {% endfor %}
+                        </div>
+                      </li>
+                  </ul>
+                </div>
+              </nav>
+
+             <div class='setup'>
+              <h3>delete</h3>
+              {% if not data %}
+              <form name='dbname' method='POST'>
+                <div class="form-group">
+                        <label for="dbname">Select database to delete/delete from:</label>
+                        <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
+                </div>
+                <button type="create" name='submit' class="btn btn-primary">Select</button>
+                </form>
+                {% else %}
+                <form name='search' action="" method="post">
+                    <div class="form-group">
+                                <label for="dbname">Select database to delete/delete from:</label>
+                                <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
+                    </div>
+                    <div class="search_table">
+                    <table class="table table-bordered" style="align-content: center;  border:'0' ;">
+                        <col width="240">
+                        <col width="240">
+                        <col width="240">
+                        <tr><td colspan=3>
+                                    <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="exampleRadios" value="option1" onclick=get_value()>&nbsp;&nbsp;&nbsp;&nbsp;
+                                            <label class="form-check-label" for="exampleRadios1">
+                                              Delete by molecule
+                                            </label>
+                                          </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                            <td><input id='smiles_search' type ="checkbox" name="smiles_search" value="yes" onclick="document.getElementById('smi').disabled=!this.checked" disabled>&nbsp;&nbsp;Search for SMILES
+                                            </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                                            <td colspan=2><input id='smi' type="text" name="smiles" class="searchTerm" placeholder="SMILES" style="width:100%" size='55' disabled ></td>
+                                    </tr>
+                                    <tr>
+                                            <td><input id='MW' type ="checkbox" name="MW" value="MW" onclick="document.getElementById('from_MW').disabled=!this.checked;document.getElementById('to_MW').disabled=!this.checked" disabled>&nbsp;&nbsp;Molecular Weight in g/mol
+                                            </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                                            <td><input id='from_MW' type="text" name="MW_from_val" class="searchTerm_left" placeholder="Min" style="width:100%" size='25' disabled></td>
+                                            <td><input id='to_MW' type="text" name="MW_to_val" class="searchTerm_right" placeholder="Max" style="width:100%" size='25' disabled></td>
+                                    </tr>
+                    </table>
+                    <table class="table table-bordered" style="align-content: center;  border:'0' ;">
+                            <col width="240">
+                            <col width="240">
+                            <col width="240">
+                        
+                            <tr><td colspan=3>
+                                    <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="exampleRadios" value="option2" onclick=get_value()>&nbsp;&nbsp;&nbsp;&nbsp;
+                                            <label class="form-check-label" for="exampleRadios2">
+                                              Delete by property
+                                            </label>
+                                          </div>
+                                        </td></tr>
+            
+                        {% for row in properties %}
+                        <tr>
+                                <td><input id='propid-{{row[0]}}' type ="checkbox" name="{{row[1]}}_id" value="{{row[0]}}" onclick="document.getElementById('from_{{row[1]}}').disabled=!this.checked;document.getElementById('to_{{row[1]}}').disabled=!this.checked" disabled>&nbsp;&nbsp;{{row[1]}}
+                                </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                                <td><input id='from_{{row[1]}}' type="text" name="{{row[1]}}_from_val" class="searchTerm_left" placeholder="Min" style="width:100%" size='25' disabled></td>
+                                <td><input id='to_{{row[1]}}' type="text" name="{{row[1]}}_to_val" class="searchTerm_right" placeholder="Max" style="width:100%" size='25' disabled></td>
+                            </tr>
+                        {% endfor %}
+                        <tr>
+                            <td> 
+                            <input id='2' type='checkbox' name='method' value='method' onclick="document.getElementById('method').disabled=!this.checked;document.getElementById('func').disabled=!this.checked;document.getElementById('basis').disabled=!this.checked;document.getElementById('ff').disabled=!this.checked" disabled>&nbsp;&nbsp; Search for properties by Method
+                            </td>&nbsp;&nbsp;&nbsp;&nbsp;
+                            <td colspan=2>
+                            <select id='method' name='method_name' disabled>
+                            {% for method in methods %}
+                            <option value="{{method}}" size='100'>{{method}}</option>
+                            {% endfor %}
+                        </select>
+                            
+                                <select id='func' name='functional_name' disabled>
+                                {% for func in functionals %}
+                                <option value="{{func[0]}}" size=100>{{func[1]}}</option>
+                                {% endfor %}
+                            </select>
+                                <select id='basis' name='basis_set' disabled>
+                                    {% for bas in basis %}
+                                    <option value="{{bas[0]}}" size=100>{{bas[1]}}</option>
+                                    {% endfor %}
+                                </select>
+                                <select id='ff' name='forcefield' disabled>
+                                    {% for ff in forcefields %}
+                                    <option value="{{ff[0]}}" size=100>{{ff[1]}}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+        
+                    </table>
+                
+                    </br>
+                    <!-- <input id='csv' type="checkbox" name='csv' value='csv' onclick="document.getElementById('path').disabled=!this.checked">&nbsp;&nbsp;save as CSV&nbsp;&nbsp;<input id='path' type='text' name='path' class='searchTerm' placeholder='path+name.csv' style="resize:none; color: black" disabled> -->
+        
+                    <button type="submit" name="search-query" class="btn btn-primary btn">Search</button>
+            </form>
+            {% endif %}
+            {% if err_msg %}
+            <div class="alert alert-danger" role="alert">
+                    <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                  {{err_msg}}
+                </div>
+            {% endif %}
+            {% if success_msg %}
+            <div class="alert alert-success" role="alert">
+                    <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                  {{success_msg}}
+                </div>
+                {% endif %}
+        </div>
+        </body>
+            </html>
+

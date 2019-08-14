@@ -22,7 +22,7 @@ if __name__ == "__main__":
         description=
         'chembddb is a big data database generator.',
         long_description=long_description,
-        scripts=['lib/chembddbshell'],
+        # scripts=['lib/chembddbshell'],
         keywords=[
             'Big data', 'SQL database',
             'Web-framework','Materials Science', 

@@ -10,37 +10,34 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
-    <style>
-
-    </style>
 </head>
 
 </div>
 <body> 
-    <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+    <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #005bbb;font-family:Exo;">
 
                 <div class="collapse navbar-collapse" id="navbarNav">
                   <ul class="navbar-nav">
                     <li class="nav-item ">
-                      <a class="nav-link">Connect </a>
+                      <a class="nav-link" style="color:#ffffff;" >Connect </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" href='/setup' target='_blank'>Create</a>
+                            <a class="nav-link" href='/setup'  style="color:#ffffff;" target='_blank'>Create</a>
                           </li>
                     <li class="nav-item">
-                      <a class="nav-link" href='/insert' target='_blank'>Insert</a>
+                      <a class="nav-link" href='/insert' style="color:#ffffff;" target='_blank'>Insert</a>
                     </li>
                     <li class="nav-item active">
-                        <a class="nav-link" href='/search' target='_blank'>Search <span class="sr-only">(current)</span> </a>
+                        <a class="nav-link" href='/search' style="color:#ffffff;" target='_blank'>Search <span class="sr-only">(current)</span> </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link">Result</a>
+                            <a class="nav-link" style="color:#ffffff;">Result</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href='/delete' target='_blank'>Delete</a>
+                        <a class="nav-link" href='/delete' style="color:#ffffff;" target='_blank'>Delete</a>
                     </li>
                     <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color:#ffffff;" >
                               All Databases
                             </a>
                             <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
@@ -53,11 +50,11 @@
                 </div>
               </nav>
     
-    <div class="search">
+    <div class="search" style="font-family:Exo;">
         <h3>Search</h3>
         <form name='search' action="" method="post">
             <div class="search_table">
-            <table class="table table-bordered" border="0" style="align-content: center">
+            <table class="table table-bordered" border="0" style="align-content: center;font-family:Exo;">
                 <col width="240">
                 <col width="240">
                 <col width="240">
@@ -86,14 +83,14 @@
                     <input id=2 type='checkbox' name='method' value='method' onclick="document.getElementById('method').disabled=!this.checked;document.getElementById('func').disabled=!this.checked;document.getElementById('basis').disabled=!this.checked;document.getElementById('ff').disabled=!this.checked">&nbsp;&nbsp; Search for properties by Method
                     </td>&nbsp;&nbsp;&nbsp;&nbsp;
                     <td colspan=2>
-                    <select id='method' name='method_name' disabled>
+                <select id='method' name='method_name' disabled>
                     {% for method in methods %}
-                    <option value="{{method}}" size='100'>{{method}}</option>
+                    <option value="{{method}}" size='100' style="font-family:Exo;">{{method}}</option>
                     {% endfor %}
                 </select>
                     
                     
-                        <select id='func' name='functional_name' disabled>
+                    <select id='func' name='functional_name' disabled>
                         {% for func in functionals %}
                         <option value="{{func[0]}}" size=100>{{func[1]}}</option>
                         {% endfor %}
@@ -118,14 +115,14 @@
             </br>
             <!-- <input id='csv' type="checkbox" name='csv' value='csv' onclick="document.getElementById('path').disabled=!this.checked">&nbsp;&nbsp;save as CSV&nbsp;&nbsp;<input id='path' type='text' name='path' class='searchTerm' placeholder='path+name.csv' style="resize:none; color: black" disabled> -->
 
-            <button type="submit" name="search-query" class="btn btn-primary btn">Search</button>
+            <button type="submit" name="search-query" class="btn btn-primary btn" style="background-color:#005bbb;color:#ffffff" >Search</button>
     </form>
     <hr>
 
 </div>
     </div>
 
-<div class='result'>
+<div class='result' style="font-family:Exo;">
 
 {% if data %}
 <div class="row">
@@ -140,13 +137,13 @@
                     <option value='ascending' size=100>ascending</option>
                     <option value='descending' size=100>descending</option>
                 </select>
-                <button type="submit" name='orderby_property' class='btn btn-primary btn-md'>re-order</button>
+                <button type="submit" name='orderby_property' class='btn btn-primary btn-md' style="background-color:#005bbb;color:#ffffff" >re-order</button>
             </form>
         </div>
         
         <div class='col-md-2 col-md-offset-4'>
         <form name='csv' action="" method="post">
-                <button type="submit" name="download_csv" class="btn btn-primary btn-md">Download</button>     
+                <button type="submit" name="download_csv" class="btn btn-primary btn-md" style="background-color:#005bbb;color:#ffffff" >Download</button>     
         </form>
         </div>
         </div>

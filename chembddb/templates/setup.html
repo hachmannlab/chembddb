@@ -19,36 +19,36 @@
 </head>
 <body>
 
-        <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #e3f2fd;">
+        <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #005bbb;">
 
                 <div class="collapse navbar-collapse" id="navbarNav">
                   <ul class="navbar-nav">
                       <li class="nav-item">
-                          <a class="nav-link">Connect</a>
+                          <a class="nav-link" style="color:#ffffff;font-family:Exo;">Connect</a>
                         </li>
                     <li class="nav-item active">
-                      <a class="nav-link">Create <span class="sr-only">(current)</span></a>
+                      <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Create <span class="sr-only">(current)</span></a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link" href='/insert' target='_blank'>Insert</a>
+                      <a class="nav-link" href='/insert' style="color:#ffffff;font-family:Exo;" target='_blank'>Insert</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href='/search' target='_blank'>Search</a>
+                        <a class="nav-link" href='/search' style="color:#ffffff;font-family:Exo;" target='_blank'>Search</a>
                     </li>
                     
                     <li class="nav-item">
-                            <a class="nav-link">Result</a>
+                            <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Result</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link" href='/delete' target='_blank'>Delete</a>
+                      <a class="nav-link" href='/delete' style="color:#ffffff;font-family:Exo;" target='_blank'>Delete</a>
                   </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color:#ffffff;font-family:Exo;" >
                           All Databases
                         </a>
                         <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
                           {% for adbs in all_dbs %}
-                          <a class="dropdown-item" href="#">{{adbs[0]}}</a>
+                          <a class="dropdown-item" style="font-family:Exo;" href="#">{{adbs[0]}}</a>
                           {% endfor %}
                         </div>
                       </li>
@@ -58,23 +58,23 @@
 
               <div class="setup">
                     <meta charset="UTF-8">
-                    <h3>Setup</h3>
+                    <h3 style="font-family:Exo;">Setup</h3>
                             <form name='dbname' method='POST'>
                             <div class="form-group">
-                                    <label for="dbname">Enter database name and select option:</label>
-                                    <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
+                                    <label for="dbname" style="font-family:Exo;">Enter database name and select option:</label>
+                                    <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' style="font-family:Exo;" placeholder="Name">
                             </div>
-                            <button type="create" name='create' class="btn btn-primary" action="http://localhost:5000/setup">Create</button>
+                            <button type="create" name='create' class="btn btn-primary" action="http://localhost:5000/setup" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Create</button>
                             </form>
                           {% if err_msg %}
                           <div class="alert alert-danger" role="alert">
-                                <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                                <a href="#" class="close" data-dismiss="alert" style="font-family:Exo;" aria-label="close">×</a>
                                 {{err_msg}}
                               </div>
                           {% endif %}
                           {% if success_msg %}
                           <div class="alert alert-success" role="alert">
-                                <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                                <a href="#" class="close" data-dismiss="alert" style="font-family:Exo;"aria-label="close">×</a>
                                 {{success_msg}}
                               </div>
                           {% endif %}

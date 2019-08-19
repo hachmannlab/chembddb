@@ -112,7 +112,7 @@ def setup(host='',user='',pw='',db=''):
     if result == 0:
         cur.execute('CREATE DATABASE %s;'%db)
         cur.execute('USE %s;'%db)
-        cur.execute('CREATE TABLE `%s`.`Molecule` (`id` INT NOT NULL AUTO_INCREMENT,`SMILES_str` VARCHAR(500) DEFAULT \'NONE\', `Molecule_identifier` VARCHAR(200) DEFAULT \'NONE\',`MW` FLOAT, PRIMARY KEY (`id`));'%db)
+        cur.execute('CREATE TABLE `%s`.`Molecule` (`id` INT NOT NULL AUTO_INCREMENT,`SMILES_str` VARCHAR(500) DEFAULT \'NONE\', `InChI` VARCHAR(200) DEFAULT \'NONE\',`MW` FLOAT, PRIMARY KEY (`id`));'%db)
         # cur.execute('CREATE TABLE `%s`.`Credit`(`id` INT NOT NULL AUTO_INCREMENT,`DOI` VARCHAR(100) UNIQUE DEFAULT \'None\',`details` VARCHAR(100) DEFAULT \'None\',PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Property`(`id` INT NOT NULL AUTO_INCREMENT,`Property_str` VARCHAR(100) NOT NULL UNIQUE,`Unit` VARCHAR(100) NOT NULL,PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Model`(`id` INT NOT NULL AUTO_INCREMENT,`method_name` VARCHAR(100) NOT NULL UNIQUE,`options` VARCHAR(500),PRIMARY KEY (`id`));'%db)
@@ -457,22 +457,36 @@ def search_db(db):
             sql='select value.molecule_id,molecule.SMILES_str,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
             # sql = 'select value.molecule_id,molecule.SMILES_str,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id where '
             from_form = from_form.to_dict(flat=False)
-            prop_counter=0
             keys=[i for i in from_form if '_id' in i]
             min_max_err=False
             min_max_prop=[]
             # print(from_form)
-            for k in keys:
-                prop_id=int(from_form[k][0])
-                from_val=float(from_form[k[:-3]+'_from_val'][0])
-                to_val=float(from_form[k[:-3]+'_to_val'][0])
-                if from_val > to_val:
-                    min_max_err=True
-                sql = sql[:sql.rfind('where')+6] + 'molecule_id in (select molecule_id from value where value.property_id={0} and value.num_value>{1} and value.num_value<{2}) and '.format(prop_id,from_val,to_val) + sql[sql.rfind('where')+6:] + 'value.property_id={0} or  '.format(prop_id)
-            
-            if len(keys)!=0:
-                sql=sql[:-5]
+            props=[]
+            if len(keys)>0:
+                for k in keys:
+                    prop_id=int(from_form[k][0])
+                    props.append(prop_id)
+                    from_val=float(from_form[k[:-3]+'_from_val'][0])
+                    to_val=float(from_form[k[:-3]+'_to_val'][0])
+                    if from_val > to_val:
+                        min_max_err=True
+                    sql = sql[:sql.rfind('where')+6] + 'molecule_id in (select molecule_id from value where value.property_id={0} and value.num_value>{1} and value.num_value<{2}) and '.format(prop_id,from_val,to_val) + sql[sql.rfind('where')+6:]
+                # + 'value.property_id={0} or '.format(prop_id)
+                if len(keys)!=0:
+                    sql=sql[:-5]
+                valsid=' and value.property_id in '
+                for i in range(len(props)):
+                    if i > 0:
+                        # print('here')
+                        valsid = valsid + ',' + str(props[i])
+                    else:
+                        # print('nothere')
+                        valsid = valsid + '(' + str(props[i])
+                valsid = valsid +')'
+                sql = sql +valsid
+            # print(sql)
 
+            # sql = sql+')'
             if 'MW' in from_form:
                 from_val=float(from_form['MW_from_val'][0])
                 to_val=float(from_form['MW_to_val'][0])
@@ -516,14 +530,14 @@ def search_db(db):
                 else:
                     sql=sql+' and Value.forcefield_id={}'.format(from_form['forcefield'][0])
             sql=sql+';'
-            print(sql)
+            # print(sql)
             cur.execute(sql)
             data1=cur.fetchall() 
             data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
             data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
             
             data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-
+            
             data = data[data.columns[-3:]]
             # print(data.head())
             # print(data.columns)
@@ -542,7 +556,22 @@ def search_db(db):
                 columns=[c.replace('(na/na)','') for c in columns]
                 columns=[c.replace('(NA)','') for c in columns]
                 columns=[c.replace('(na)','') for c in columns]
+                temp_col=[]
+                temp_met=[]
+                # print(columns)
+                for c in columns:
+                    if '-' in c:
+                        temp_col.append(c.split('-')[0])
+                        if len(c.split('-'))>2:
+                            temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
+                        else:
+                            temp_met.append(c.split('-')[1])
+                    else:
+                        temp_col.append(c)
+                        temp_met.append('')
+                # print(columns)
                 try:
+                    # print('here')
                     if 'smiles_search' in from_form:
                         # sql=sql+" and molecule.SMILES_str like \'{}\'".format('%'+from_form['smiles'][0]+'%')
                         smarts = pybel.Smarts(from_form['smiles'][0])
@@ -575,6 +604,10 @@ def search_db(db):
                     n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
                     columns=''
             desc=['','']
+            # print(data)
+            columns =[]
+            for i in range(len(temp_met)):
+                columns.append((temp_col[i],temp_met[i]))
             for i in data.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
             data = tuple(data.itertuples(index=False,name=None))
@@ -582,7 +615,8 @@ def search_db(db):
             to_order=False
             # print_l('Preparing the results...','./')
             db = db.replace('_chembddb','')
-            return render_template('search_db.html', data = data,properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+
+            return render_template('search_db.html', data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
         elif 'download_csv' in request.form:
             # print(is_download)
             from_form = request.form
@@ -595,8 +629,17 @@ def search_db(db):
             search_results.to_csv('results.csv',index=None)
             msg='Results have been downloaded as results.csv'
             data = tuple(search_results.itertuples(index=False,name=None))
+            columns=[]
+            for i in range(len(search_results.columns)):
+                if i<2:
+                    columns.append((search_results.columns[i],''))
+                else:
+                    if len(search_results.columns[i].split('-')) > 2:
+                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]+'-'+search_results.columns[i].split('-')[2]))
+                    else:
+                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))            
             # print_l('The results have been downloaded in {}.csv ...'.format(from_form['path'][0]),'./')
-            return render_template('search_db.html',data = data,properties=properties,columns=search_results.columns,methods=methods,msg=msg,n_res=len(data),functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download,all_dbs=all_dbs,title=db,desc=desc)
+            return render_template('search_db.html',data = data,properties=properties,columns=columns,methods=methods,msg=msg,n_res=len(data),functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download,all_dbs=all_dbs,title=db,desc=desc)
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
@@ -610,8 +653,17 @@ def search_db(db):
             for i in search_results.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
             n_res=len(data)
+            columns=[]
+            for i in range(len(search_results.columns)):
+                if i<2:
+                    columns.append((search_results.columns[i],''))
+                else:
+                    if len(search_results.columns[i].split('-')) > 2:
+                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]+'-'+search_results.columns[i].split('-')[2]))
+                    else:
+                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))
             # print_l('The results have been ordered in {} order of {}...'.format(from_form['select_order'],from_form['property_orderby']))
-            return render_template('search_db.html',data = data,properties=properties,columns=search_results.columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
+            return render_template('search_db.html',data = data,properties=properties,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         else:
             # print(properties)
             return render_template('search_db.html',properties=properties,methods=methods,is_download=is_download,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)

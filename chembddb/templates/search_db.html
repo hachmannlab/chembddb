@@ -5,11 +5,15 @@
     <!-- website name -->
     <title>Chembddb-Search</title>
     <!-- website heading -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
+    <script> $(function () {
+        $('[data-toggle="tooltip"]').tooltip()
+      })</script>
 </head>
 
 </div>
@@ -130,7 +134,7 @@
         <form name='orderby' action="" method="post">
                 <select id='property_ordering' name='property_orderby'>
                     {% for cols in columns[2:] %}
-                    <option value="{{cols}}" size=100>{{cols}}</option>
+                    <option value="{{cols[0]}}-{{cols[1]}}" size=100>{{cols[0]}}-{{cols[1]}}</option>
                     {% endfor %}
                 </select>
                 <select id='order' name='select_order'>
@@ -156,7 +160,12 @@
 <table class="table table-striped table-bordered table-hover">
     Number of Results: {{n_res}}
     {% for cols in columns %}
-    <th>{{cols}}</th>
+        {% if cols[0] != 'SMILES' and cols[0] != 'ID' %}
+        <th>{{cols[0]}}<span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" data-placement="right" title="Method: {{cols[1]}}">
+        </span></th>
+        {% else %}
+        <th>{{cols[0]}}</th>
+        {% endif %}
     {% endfor %}
     <tr>
         {% for d in desc %}

@@ -41,16 +41,6 @@
                     <li class="nav-item">
                       <a class="nav-link" href='/delete' style="color:#ffffff;font-family:Exo;" target='_blank'>Delete</a>
                   </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color:#ffffff;;font-family:Exo;" >
-                          All Databases
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-                          {% for adbs in all_dbs %}
-                          <a class="dropdown-item" style="font-family:Exo;" href="#">{{adbs[0]}}</a>
-                          {% endfor %}
-                        </div>
-                      </li>
                   </ul>
                 </div>
               </nav>
@@ -58,13 +48,23 @@
               <div class="setup">
                     <meta charset="UTF-8">
                     <h3 style="font-family:Exo;">Search</h3>
-                            <form name='dbname' method='POST'>
-                            <div class="form-group">
+                            <!-- <form name='dbname' method='POST'> -->
+                            <!-- <div class="form-group">
                                     <label for="dbname" style="font-family:Exo;">Enter database name and select option:</label>
                                     <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' style="font-family:Exo;" placeholder="Name">
+                            </div> -->
+                            <div class="dropdown">
+                                    <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">
+                                        Select Databases
+                                      </button>
+                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                  {% for adbs in all_dbs %}
+                                  <a class="dropdown-item" style="font-family:Exo;" onclick="window.open('/search_db<{{adbs[0]}}>','_blank')" >{{adbs[0]}}</a>
+                                  {% endfor %}
+                                </div>
                             </div>
-                            <button type="create" name='create' class="btn btn-primary" onclick="window.open('/search_db<'+get_value()+'>','_blank')" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Search</button>
-                            </form>
+                            <!-- <button type="create" name='create' class="btn btn-primary" onclick="window.open('/search_db<'+get_value()+'>','_blank')" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Search</button>
+                            </form> -->
                           {% if err_msg %}
                           <div class="alert alert-danger" role="alert">
                                 <a href="#" class="close" data-dismiss="alert" aria-label="close" style="font-family:Exo;">×</a>

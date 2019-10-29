@@ -82,8 +82,14 @@
               {% if not data %}
               <form name='dbname' method='POST'>
                 <div class="form-group">
-                        <label for="dbname">Select database to delete/delete from:</label>
-                        <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
+                        <!-- <label for="dbname">Select database to delete/delete from:</label> -->
+                        <!-- <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name"> -->
+                        <select name="dbs">
+                            {% for adbs in all_dbs %}
+                            <option value='{{adbs[0]}}'></option>
+                            {% endfor %}
+                        </select>
+ 
                 </div>
                 <button type="create" name='submit' class="btn btn-primary">Select</button>
                 </form>

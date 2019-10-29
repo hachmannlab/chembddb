@@ -11,6 +11,9 @@ import time
 
 
 app = Flask(__name__)
+# if 'uploads' not in os.listdir():
+    # os.makedirs('./uploads')
+# upload_directory='./uploads'
 upload_directory=os.getcwd()
 app.config['UPLOAD FOLDER']=upload_directory
 
@@ -41,9 +44,6 @@ def connect():
 
     Parameters
     ----------
-    host=
-    user=
-    pw=
     Returns
     -------
     cur: cursor object
@@ -444,6 +444,12 @@ def search_db(db):
         forcefields=cur.fetchall()
         methods=[]
         global search_results
+        global sql
+        global ini
+        global fin
+        global n_res
+        global noprev
+        global nonext
         is_download=True
         to_order=True
         # print(results)
@@ -451,45 +457,47 @@ def search_db(db):
         for i in results:
             methods.append(i[1])
         # print(methods)
+        # print(request.form)
         if request.method == 'POST' and 'search-query' in request.form:
             from_form = request.form
-            # print(from_form)
             sql='select value.molecule_id,molecule.SMILES_str,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
-            # sql = 'select value.molecule_id,molecule.SMILES_str,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id where '
             from_form = from_form.to_dict(flat=False)
             keys=[i for i in from_form if '_id' in i]
             min_max_err=False
             min_max_prop=[]
-            # print(from_form)
             props=[]
+            p = []
+            # tuple of tuples to list of tuples
+            for pr in properties:
+                p.append(list(pr))
+            properties = p
             if len(keys)>0:
                 for k in keys:
                     prop_id=int(from_form[k][0])
                     props.append(prop_id)
                     from_val=float(from_form[k[:-3]+'_from_val'][0])
                     to_val=float(from_form[k[:-3]+'_to_val'][0])
+                    properties[prop_id-1].append(from_val)
+                    properties[prop_id-1].append(to_val)
                     if from_val > to_val:
                         min_max_err=True
                     sql = sql[:sql.rfind('where')+6] + 'molecule_id in (select molecule_id from value where value.property_id={0} and value.num_value>{1} and value.num_value<{2}) and '.format(prop_id,from_val,to_val) + sql[sql.rfind('where')+6:]
-                # + 'value.property_id={0} or '.format(prop_id)
                 if len(keys)!=0:
                     sql=sql[:-5]
                 valsid=' and value.property_id in '
                 for i in range(len(props)):
                     if i > 0:
-                        # print('here')
                         valsid = valsid + ',' + str(props[i])
                     else:
-                        # print('nothere')
                         valsid = valsid + '(' + str(props[i])
                 valsid = valsid +')'
                 sql = sql +valsid
-            # print(sql)
-
-            # sql = sql+')'
+            MW_to = None
             if 'MW' in from_form:
                 from_val=float(from_form['MW_from_val'][0])
                 to_val=float(from_form['MW_to_val'][0])
+                MW_from = from_val
+                MW_to = to_val
                 if from_val > to_val:
                     min_max_err=True
                 if len(keys)!=0:
@@ -529,26 +537,44 @@ def search_db(db):
                     sql=sql+' Value.forcefield_id={}'.format(from_form['forcefield'][0])
                 else:
                     sql=sql+' and Value.forcefield_id={}'.format(from_form['forcefield'][0])
+            
+            counts_q = 'select count(*) '+sql[sql.find('from'):] +';'
+            sql = sql + 'limit 50'
+            cur.execute(counts_q)
+            print(counts_q)
+            global counts
+            counts = cur.fetchall()
+            counts = counts[0][0]
+            print(counts)
             sql=sql+';'
             # print(sql)
-            cur.execute(sql)
-            data1=cur.fetchall() 
-            data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-            
-            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-            
-            data = data[data.columns[-3:]]
-            # print(data.head())
-            # print(data.columns)
-            data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-            data = data.reset_index()
-            # print(data.head())
-            # print(data.columns)
-            if len(data)>0:
-                # data=data['Value'].reset_index()
+            temp_col=[]                # print(columns)
+            temp_met=[]
+            if counts == 0:
+                if min_max_err==True:
+                    n_res = 'Min value entered is > Max value entered for one of the fields above.' 
+                    columns=''
+                else:               
+                    n_res = 'Number of results='+ str(counts)+'. No such candidates exist in your database'
+                    columns=''
+                if 'MW' in from_form:
+                    return render_template('search_db.html',MW_from=MW_from, MW_to=MW_to,properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
+                else:
+                    return render_template('search_db.html',properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
+            else:
+                cur.execute(sql)
+                print(sql)
+                data1=cur.fetchall() 
+                data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                data = data[data.columns[-3:]]
+                print(data.head())
+                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                data = data.reset_index()
                 data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
                 columns=['ID','SMILES']
+
                 for i in data.columns[1:-2]:
                     columns.append(i)
                 data=data[columns]
@@ -556,9 +582,6 @@ def search_db(db):
                 columns=[c.replace('(na/na)','') for c in columns]
                 columns=[c.replace('(NA)','') for c in columns]
                 columns=[c.replace('(na)','') for c in columns]
-                temp_col=[]
-                temp_met=[]
-                # print(columns)
                 for c in columns:
                     if '-' in c:
                         temp_col.append(c.split('-')[0])
@@ -570,12 +593,121 @@ def search_db(db):
                         temp_col.append(c)
                         temp_met.append('')
                 # print(columns)
+                print(data.head())
+                print(data.columns)
                 try:
                     # print('here')
+                    smi_val = None
                     if 'smiles_search' in from_form:
                         # sql=sql+" and molecule.SMILES_str like \'{}\'".format('%'+from_form['smiles'][0]+'%')
                         smarts = pybel.Smarts(from_form['smiles'][0])
+                        smi_val = smarts
                         # print(smarts)
+                        for i in range(len(data)):
+                            mol = pybel.readstring("smi",data.loc[i]['SMILES'])
+                            smarts.obsmarts.Match(mol.OBMol)
+                            if len(smarts.findall(mol))==0:
+                                data.drop(i,0,inplace=True)
+                        search_results=data
+                        search_results.columns=columns
+                        if len(data)==0:
+                            n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                        else:
+                            n_res=len(data)
+                    else:
+                        n_res=counts                       
+                except:
+                    n_res='Invalid Smarts entered'
+                    data=pd.DataFrame()
+                desc=['','']
+                # print(data)
+                columns =[]
+                for i in range(len(temp_met)):
+                    columns.append((temp_col[i],temp_met[i]))
+                for i in data.columns[2:]:
+                    desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
+                # print(keys)
+                kc = False
+                for i in keys:
+                    if '_id' in i:
+                        # print(i)
+                        kc = True
+                if kc == False:
+                    # print('abc')
+                    data=data[data.columns[:2]]
+                    columns=columns[:2]
+                    desc = desc[:2]
+                data = tuple(data.itertuples(index=False,name=None))
+                is_download=False
+                to_order=False
+                noprev=True
+                # print_l('Preparing the results...','./')
+                db = db.replace('_chembddb','')
+                ini=0
+                if n_res < 50:
+                    fin = n_res
+                    nonext=True
+                else:
+                    nonext=False
+                    fin = 50
+                if 'MW' in from_form:
+                    return render_template('search_db.html',ini=ini,fin=fin, MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
+                else:
+                    return render_template('search_db.html',ini=0,fin=fin,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
+        elif 'next-50' in request.form:
+            print(n_res)
+            nonext=False
+            counts = counts - 50
+            from_form = request.form
+            from_form = from_form.to_dict(flat=False)
+            n_res_done = 0
+            if sql[-9:] == 'offset 0;':
+                sql = sql[:-9] + ';'
+            elif ' offset' in sql:
+                # checking the offset in the previous sql query, this number tells us how many results have been displayed already
+                n_res_done = int(sql[-4:-1])
+                # print(n_res_done)
+                sql = sql[:-4] + ' '+str(n_res_done + 50) +';'
+                n_res_done = n_res_done + 50
+            else:
+                n_res_done = 50
+                sql = sql[:-1]+' offset 50;'
+            cur.execute(sql)
+            data1=cur.fetchall() 
+            data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+            data = data[data.columns[-3:]]
+            temp_col=[]
+            temp_met=[]
+            if len(data)>0:
+                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                data = data.reset_index()
+                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                columns=['ID','SMILES']
+                for i in data.columns[1:-2]:
+                    columns.append(i)
+                data=data[columns]
+                columns=[c.replace('(NA/NA)','') for c in columns]
+                columns=[c.replace('(na/na)','') for c in columns]
+                columns=[c.replace('(NA)','') for c in columns]
+                columns=[c.replace('(na)','') for c in columns]
+
+                for c in columns:
+                    if '-' in c:
+                        temp_col.append(c.split('-')[0])
+                        if len(c.split('-'))>2:
+                            temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
+                        else:
+                            temp_met.append(c.split('-')[1])
+                    else:
+                        temp_col.append(c)
+                        temp_met.append('')
+                try:
+                    smi_val = None
+                    if 'smiles_search' in from_form:
+                        smarts = pybel.Smarts(from_form['smiles'][0])
+                        smi_val = smarts
                         for i in range(len(data)):
                             mol = pybel.readstring("smi",data.loc[i]['SMILES'])
                             smarts.obsmarts.Match(mol.OBMol)
@@ -586,43 +718,127 @@ def search_db(db):
                     if len(data)==0:
                         n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
                     else:
-                        n_res = str(len(data))
-                    # print(data)
-                    # if 'csv' in from_form:
-                    #     search_results.to_csv(from_form['path'][0],index=None)
+                        n_res=counts + n_res_done            
                 except:
                     n_res='Invalid Smarts entered'
-                    # print_l('Invalid Smarts entered','.')
                     data=pd.DataFrame()
             else:
-                if min_max_err==True:
-                    # print_l('Min value entered is > Max value entered for a property','./')
-                    n_res = 'Min value entered is > Max value entered for one of the fields above.' 
-                    columns=''
-                else:               
-                    # print_l('No such candidates exist in your database','./')
-                    n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
-                    columns=''
+                # if min_max_err==True:
+                #     n_res = 'Min value entered is > Max value entered for one of the fields above.' 
+                #     columns=''
+                # else:               
+                n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
+                columns=''
             desc=['','']
-            # print(data)
             columns =[]
-            for i in range(len(temp_met)):
-                columns.append((temp_col[i],temp_met[i]))
-            for i in data.columns[2:]:
-                desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
+            if counts < 50: 
+                fin = n_res_done + counts
+                nonext = True
+            else:
+                nonext = False
+                fin = n_res_done + 50                
+            noprev=False
+            if temp_met!=[]:
+                for i in range(len(temp_met)):
+                    columns.append((temp_col[i],temp_met[i]))
+                for i in data.columns[2:]:
+                    desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
             data = tuple(data.itertuples(index=False,name=None))
-            is_download=False
-            to_order=False
-            # print_l('Preparing the results...','./')
-            db = db.replace('_chembddb','')
-
-            return render_template('search_db.html', data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
-        elif 'download_csv' in request.form:
-            # print(is_download)
+            ini = n_res_done
+            if 'MW' in from_form:
+                return render_template('search_db.html',ini=ini,fin=fin, noprev=False,nonext=nonext, MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+            else:
+                return render_template('search_db.html',ini=ini,fin=fin,nonext=nonext,noprev=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+        elif 'prev-50' in request.form:
+            print(n_res)
+            noprev=False
+            counts = counts + 50
             from_form = request.form
-            # print(from_form)
             from_form = from_form.to_dict(flat=False)
-            # print(search_results)
+            n_res_done = 0
+            if ' offset' in sql:
+                print(sql)
+                # checking the offset in the previous sql query, this number tells us how many results have been displayed already
+                n_res_done = int(sql[-4:-1])
+                # print(n_res_done)
+                sql = sql[:-4] + ' '+str(n_res_done - 50) +';'
+                n_res_done = n_res_done - 50
+                noprev = False
+            else:
+                noprev = True
+
+            if n_res_done ==0:
+                noprev = True
+            cur.execute(sql)
+            data1=cur.fetchall() 
+            data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+            data = data[data.columns[-3:]]
+            temp_col=[]
+            temp_met=[]
+            if len(data)>0:
+                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                data = data.reset_index()
+                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                columns=['ID','SMILES']
+                for i in data.columns[1:-2]:
+                    columns.append(i)
+                data=data[columns]
+                columns=[c.replace('(NA/NA)','') for c in columns]
+                columns=[c.replace('(na/na)','') for c in columns]
+                columns=[c.replace('(NA)','') for c in columns]
+                columns=[c.replace('(na)','') for c in columns]
+
+                for c in columns:
+                    if '-' in c:
+                        temp_col.append(c.split('-')[0])
+                        if len(c.split('-'))>2:
+                            temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
+                        else:
+                            temp_met.append(c.split('-')[1])
+                    else:
+                        temp_col.append(c)
+                        temp_met.append('')
+                try:
+                    smi_val = None
+                    if 'smiles_search' in from_form:
+                        smarts = pybel.Smarts(from_form['smiles'][0])
+                        smi_val = smarts
+                        for i in range(len(data)):
+                            mol = pybel.readstring("smi",data.loc[i]['SMILES'])
+                            smarts.obsmarts.Match(mol.OBMol)
+                            if len(smarts.findall(mol))==0:
+                                data.drop(i,0,inplace=True)
+                    search_results=data
+                    search_results.columns=columns
+                    if len(data)==0:
+                        n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                    else:
+                        n_res=counts + n_res_done            
+                except:
+                    n_res='Invalid Smarts entered'
+                    data=pd.DataFrame()
+            else:
+                n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
+                columns=''
+            desc=['','']
+            columns =[]
+            fin = n_res_done + 50       
+            if temp_met!=[]:
+                for i in range(len(temp_met)):
+                    columns.append((temp_col[i],temp_met[i]))
+                for i in data.columns[2:]:
+                    desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
+            data = tuple(data.itertuples(index=False,name=None))
+            ini = n_res_done
+            if 'MW' in from_form:
+                return render_template('search_db.html',ini=n_res_done,fin=fin,noprev = noprev, nonext=False,MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+            else:
+                return render_template('search_db.html',ini=n_res_done,fin=fin, noprev = noprev,nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
+        elif 'download_csv' in request.form:
+            from_form = request.form
+            from_form = from_form.to_dict(flat=False)
             desc=['','']
             for i in search_results.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
@@ -638,8 +854,7 @@ def search_db(db):
                         columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]+'-'+search_results.columns[i].split('-')[2]))
                     else:
                         columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))            
-            # print_l('The results have been downloaded in {}.csv ...'.format(from_form['path'][0]),'./')
-            return render_template('search_db.html',data = data,properties=properties,columns=columns,methods=methods,msg=msg,n_res=len(data),functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download,all_dbs=all_dbs,title=db,desc=desc)
+            return render_template('search_db.html',data = data,ini=ini, fin=fin, properties=properties,columns=columns,methods=methods,msg=msg,n_res=n_res,functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download,all_dbs=all_dbs,noprev=noprev,nonext=nonext,title=db,desc=desc)
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
@@ -652,7 +867,6 @@ def search_db(db):
             data = tuple(search_results.itertuples(index=False,name=None))
             for i in search_results.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
-            n_res=len(data)
             columns=[]
             for i in range(len(search_results.columns)):
                 if i<2:
@@ -663,7 +877,7 @@ def search_db(db):
                     else:
                         columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))
             # print_l('The results have been ordered in {} order of {}...'.format(from_form['select_order'],from_form['property_orderby']))
-            return render_template('search_db.html',data = data,properties=properties,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
+            return render_template('search_db.html',data = data,properties=properties,ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         else:
             # print(properties)
             return render_template('search_db.html',properties=properties,methods=methods,is_download=is_download,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)
@@ -704,8 +918,8 @@ def molecule(dbid):
     mol_ob = pybel.readstring("smi",mol_data['SMILES'][0])
     mymol = pybel.readstring("smi", mol_ob.write("can"))
     mymol.make3D(forcefield='mmff94', steps=50)
-    # print(os.listdir())
-    mymol.write('xyz',app.config['UPLOAD FOLDER']+'/mol_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
+    print(app.config['UPLOAD FOLDER'])
+    mymol.write('xyz',app.config['UPLOAD FOLDER']+'/chembddb_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
     # mymol.write('xyz',app.config['UPLOAD FOLDER']+'mol.xyz',overwrite=True)
     # f = open('./mol_{}.xyz'.format(mol_data['ID'][0]))
     cols=[c.replace('(na/na)','') for c in cols]
@@ -822,3 +1036,7 @@ def uploaded_file(filename):
 def run_config():
     print('Open http://localhost:5000/connect')
     app.run(debug=True)
+    for i in os.listdir():
+        if 'chembddb' in i and 'xyz' in i:
+            os.remove(i)
+    # os.rmdir('./uploads')

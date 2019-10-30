@@ -11,10 +11,13 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
     <script>
+        var db =''
         function get_value(){
-            var val=document.getElementById('dbname').value;
-            return val;
+            return db
         }
+        function onselectchange(){
+       db = document.getElementById('dbname').value
+}
     </script>
 </head>
 <body>
@@ -36,9 +39,6 @@
                         <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Search<span class="sr-only" >(current)</span></a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Result</a>
-                    </li>
-                    <li class="nav-item">
                       <a class="nav-link" href='/delete' style="color:#ffffff;font-family:Exo;" target='_blank'>Delete</a>
                   </li>
                   </ul>
@@ -53,7 +53,7 @@
                                     <label for="dbname" style="font-family:Exo;">Enter database name and select option:</label>
                                     <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' style="font-family:Exo;" placeholder="Name">
                             </div> -->
-                            <div class="dropdown">
+                            <!-- <div class="dropdown">
                                     <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">
                                         Select Databases
                                       </button>
@@ -61,10 +61,21 @@
                                   {% for adbs in all_dbs %}
                                   <a class="dropdown-item" style="font-family:Exo;" onclick="window.open('/search_db<{{adbs[0]}}>','_blank')" >{{adbs[0]}}</a>
                                   {% endfor %}
-                                </div>
-                            </div>
-                            <!-- <button type="create" name='create' class="btn btn-primary" onclick="window.open('/search_db<'+get_value()+'>','_blank')" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Search</button>
-                            </form> -->
+                                </div> -->
+                            <form name='dbname' method='POST'>
+                              <div class="form-group">
+                                      <!-- <label for="dbname">Select database to delete/delete from:</label> -->
+                                      <!-- <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name"> -->
+                                      <select id='dbname' name="dbname" onchange="onselectchange()">
+                                          {% for dbname in all_dbs %}
+                                          <option value='{{dbname[0]}}'>{{dbname[0]}}</option>
+                                          {% endfor %}
+                                      </select>
+               
+                              </div>
+                            <button type="create" name='create' class="btn btn-primary" onclick="window.open('/search_db<'+get_value()+'>','_blank')" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Search</button>
+                            </form>
+              </div>
                           {% if err_msg %}
                           <div class="alert alert-danger" role="alert">
                                 <a href="#" class="close" data-dismiss="alert" aria-label="close" style="font-family:Exo;">×</a>

@@ -11,9 +11,6 @@ import time
 
 
 app = Flask(__name__)
-# if 'uploads' not in os.listdir():
-    # os.makedirs('./uploads')
-# upload_directory='./uploads'
 upload_directory=os.getcwd()
 app.config['UPLOAD FOLDER']=upload_directory
 
@@ -53,8 +50,6 @@ def connect():
         cred=request.form
         cred = cred.to_dict(flat=False)
         cur,all_dbs = connect_mysql(host = cred['host'][0], user=cred['username'][0], pw = cred['password'][0])
-        # con = pymysql.connect(host = cred['host'][0], user=cred['username'][0], password = cred['password'][0])
-        # cur = con.cursor()
         if cur == 'invalid' and all_dbs == 'credentials':
             return render_template('connect.html',err_msg='Invalid Credentials. Did not connect to MySQL')
         else:
@@ -79,7 +74,6 @@ def setup(host='',user='',pw='',db=''):
     True/False in case of success/faliure
     """
     if host != '':
-        # print('here')
         b, a = connect_mysql(host=host,user=user,pw=pw)
         db = db +'_chembddb'
     elif request.method=='POST':
@@ -99,16 +93,12 @@ def setup(host='',user='',pw='',db=''):
     all_dbs=[]
     cur.execute('show databases;')
     all_dbs_tup=cur.fetchall()
-    # print(all_dbs_tup)
     for i in all_dbs_tup:
         if '_chembddb' in i[0]:
             m=i[0]
             all_dbs.append((m[:-9],))
-    # print(all_dbs)
     cur.execute('USE INFORMATION_SCHEMA')
     result=cur.execute('SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=\'%s\''%db)
-    # result=cur.fetchall()
-    # print(result)
     if result == 0:
         cur.execute('CREATE DATABASE %s;'%db)
         cur.execute('USE %s;'%db)
@@ -135,41 +125,36 @@ def setup(host='',user='',pw='',db=''):
             if '_chembddb' in i[0]:
                 m=i[0]
                 all_dbs.append((m[:-9],))
-        # cur.ex ecute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk3` FOREIGN KEY (`credit_id`) REFERENCES `Credit`(`id`);'%db)
+
         if host == '':
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,success_msg='The database has been created.')
         else:
             return True
     else:
         if host == '':
-            # print(all_dbs)
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,err_msg='Database already exists.')
         else:
             return False
 
 @app.route('/insert',methods=['GET','POST'])
 def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file='',data_file=''):
-    # db=db[1:-1]
     mi_cols=[]
-    # cur,conn=connect_mysql()
+    cur.execute('show databases;') 
+    all_dbs_tup=cur.fetchall()
+    all_dbs=[]
+    for i in all_dbs_tup:
+        if '_chembddb' in i[0]:
+            m=i[0]
+            all_dbs.append((m[:-9],))
     if host !='':
         b,a = connect_mysql(host=host, user=user,pw=pw)
         db=db+'_chembddb'
     elif request.method=='POST':
         config_options=request.form
-        # print(config_options)
         config_options=config_options.to_dict(flat=False)
         db=config_options['dbname'][0]
-        # print(config_options)
         db = db+'_chembddb'
     else:
-        cur.execute('show databases;') 
-        all_dbs_tup=cur.fetchall()
-        all_dbs=[]
-        for i in all_dbs_tup:
-            if '_chembddb' in i[0]:
-                m=i[0]
-                all_dbs.append((m[:-9],))
         return render_template('insert.html',all_dbs=all_dbs)
     
     cur.execute('USE INFORMATION_SCHEMA')
@@ -181,19 +166,13 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
         else:
             return False
     else:
-        # print('here1')
-        # print(files)
-        # print(conf_file)
-
         if type(conf_file) is str and conf_file=='':
-            # print('1')
             files=request.files
             files=files.to_dict(flat=False)
             conf_file=files['config_file'][0]
             data_file=files['data_file'][0]
             smi_col=config_options['smiles'][0]
             mol_identifier=config_options['molecule_identifier'][0]
-            # db = db+'_chembddb'
             if conf_file.filename=='' or conf_file.filename.rsplit('.',1)[1]!='csv':
                 db.replace('_chembddb','')
                 db=db.replace('_',' ')
@@ -210,11 +189,9 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
             data=pd.read_csv(data_file)
 
         elif type(conf_file) is str and conf_file!='':
-            # print('2')
             conf=pd.read_csv(conf_file)
             data=pd.read_csv(data_file)
         else:
-            # print('3')
             conf = conf_file    
             data = data_file
 
@@ -227,7 +204,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
         if all_prop==False:
             db=db.replace('_',' ')
             if host=='':
-                return render_template('insert.html',title=db,err_msg='Property(s) in config file do not exist in data.')
+                return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Property(s) in config file do not exist in data.')
             else:
                 return False
         else:
@@ -239,7 +216,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 if host=='':
                     db=db.replace('_chembddb','')
                     db=db.replace('_',' ')
-                    return render_template('insert.html',title=db,err_msg='Identifier(s) listed do not exist in data.')
+                    return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Identifier(s) listed do not exist in data.')
                 else:
                     return False
             else:
@@ -248,11 +225,9 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method for that property, if it does not exist, fetch the last id and create a new entry
 
                 # populating and property table
-
                 entered_list=[]
                 cur.execute("SELECT Property_str from Property")
                 properties = cur.fetchall()
-                # print(properties)
                 for prop, units in zip(conf['properties'],conf['units']):
                     if any(prop in i for i in properties) or prop in entered_list:
                         pass
@@ -325,7 +300,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                                 mw = round(mw,3)
                             except:
                                 db=db.replace('_',' ')
-                                return render_template('insert.html',title=db,err_msg='Invalid SMILES at position %d.'%str(mol))
+                                return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
                             new_entries.append((smiles,'None',mw))
                     else:
                         try:
@@ -335,9 +310,14 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                             mw = round(mw,3)
                         except:
                             db=db.replace('_',' ')
-                            return render_template('insert.html',title=db,err_msg='Invalid SMILES at position %d.'%str(mol))
+                            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
                         new_entries.append((smiles,data.loc[mol][mol_identifier],mw))
 
+                # temporary fix to enable for case-insensitivity in molecule-identifier
+                molecules = [list(x) for x in molecules]
+                for i in molecules:
+                    i[1] = i[1].lower()
+                molecules = tuple(tuple(x) for x in molecules)
                 required_entries = list(set(new_entries) - set(molecules))
                 cur.executemany('INSERT INTO MOLECULE(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
                 print('molecule table populated')
@@ -350,7 +330,6 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 if mol_identifier!='':
                     cols.append(mol_identifier)
                 data = data[cols]
-                # print(data)
                 # populating the values table
 
                 cur.execute('SELECT id,Property_str from Property')
@@ -359,7 +338,6 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 cur.execute('SELECT id,Method_name from Model')
                 all_models = cur.fetchall()
                 model_id = dict(map(reversed,all_models))
-                # print(model_id)
                 cur.execute('SELECT id,name from Functional')
                 all_functionals = cur.fetchall()
                 functional_id=dict(map(reversed,all_functionals))
@@ -385,28 +363,45 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     data.drop(mol_identifier,1,inplace=True)
                 if smi_col!='':
                     data.drop(smi_col,1,inplace=True)
-                # print(data.columns)
-                # print(data)
                 data = data.melt('molecule_id')
-                # print(data)
-                # print(prop_id)
                 data['property_id']=data['variable'].apply(lambda a: prop_id[a])
-                # d[df.loc[df['properties'].tolist().index('Density')]['methods']]
-                # d[df.loc[df['var'].index.tolist()[1]]['methods']]
                 data['model_id']=data['variable'].apply(lambda a: model_id[conf.loc[conf['properties'].tolist().index(a)]['methods']])
                 data['functional_id']=data['variable'].apply(lambda a: functional_id[conf.loc[conf['properties'].tolist().index(a)]['functional']])
                 data['Basis_id']=data['variable'].apply(lambda a: basis_id[conf.loc[conf['properties'].tolist().index(a)]['basis']])
                 data['ff_id']=data['variable'].apply(lambda a: ff_id[conf.loc[conf['properties'].tolist().index(a)]['forcefield']])
                 data.drop('variable',1,inplace=True)
-                cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
-                print('value table populated')
-                con.commit() 
-                db=db.replace('_chembddb','')
-                db=db.replace('_',' ')
-                if host=='':
-                    return render_template('insert.html',title=db,success_msg='The database has been successfully populated')
+                to_drop = []
+                id = tuple(data['molecule_id'])
+                cur.execute('select * from value where molecule_id in {}'.format(str(id)))
+                vals = cur.fetchall()
+                vals = [list(x) for x in vals]
+                vals = pd.DataFrame(vals, columns=['id','value','model_id', 'property_id','molecule_id', 'functional_id','Basis_id','ff_id'])
+                check_data = data.drop('value',1)
+                vals = vals[check_data.columns]
+                vals = [list(vals.loc[x]) for x in range(len(vals))]
+                for i in range(len(data)):
+                    if list(check_data.loc[i]) in vals:
+                        to_drop.append(i)
+                data.drop(to_drop,0,inplace=True)
+
+                if len(data) == 0:
+                    if host=='':
+                        return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicates entries for all molecules exist.')
+                    else:
+                        return False
                 else:
-                    return True
+                    cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
+                    print('value table populated')
+                    con.commit() 
+                    db=db.replace('_chembddb','')
+                    db=db.replace('_',' ')
+                    if host=='':
+                        if to_drop != []:
+                            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were note entered due to duplicate entries',success_msg='The database has been successfully populated')
+                        else:
+                            return render_template('insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
+                    else:
+                        return True
 
 @app.route('/search',methods=['GET','POST'])
 def search():
@@ -423,7 +418,6 @@ def search_db(db):
             all_dbs.append((m[:-9],))
     db=db[1:-1]
     db=db+'_chembddb'
-    # print(db)
     cur.execute('USE INFORMATION_SCHEMA')
     result=cur.execute('SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=\'%s\''%db)
     if result == 0:
@@ -452,12 +446,8 @@ def search_db(db):
         global nonext
         is_download=True
         to_order=True
-        # print(results)
-        # print_l('Preparing the search page...','./')
         for i in results:
             methods.append(i[1])
-        # print(methods)
-        # print(request.form)
         if request.method == 'POST' and 'search-query' in request.form:
             from_form = request.form
             sql='select value.molecule_id,molecule.SMILES_str,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
@@ -541,14 +531,11 @@ def search_db(db):
             counts_q = 'select count(*) '+sql[sql.find('from'):] +';'
             sql = sql + 'limit 50'
             cur.execute(counts_q)
-            print(counts_q)
             global counts
             counts = cur.fetchall()
             counts = counts[0][0]
-            print(counts)
             sql=sql+';'
-            # print(sql)
-            temp_col=[]                # print(columns)
+            temp_col=[]              
             temp_met=[]
             if counts == 0:
                 if min_max_err==True:
@@ -563,13 +550,11 @@ def search_db(db):
                     return render_template('search_db.html',properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
             else:
                 cur.execute(sql)
-                print(sql)
                 data1=cur.fetchall() 
                 data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
                 data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
                 data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
                 data = data[data.columns[-3:]]
-                print(data.head())
                 data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
                 data = data.reset_index()
                 data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
@@ -582,6 +567,8 @@ def search_db(db):
                 columns=[c.replace('(na/na)','') for c in columns]
                 columns=[c.replace('(NA)','') for c in columns]
                 columns=[c.replace('(na)','') for c in columns]
+                search_results = data              
+                search_results.columns = columns
                 for c in columns:
                     if '-' in c:
                         temp_col.append(c.split('-')[0])
@@ -592,24 +579,16 @@ def search_db(db):
                     else:
                         temp_col.append(c)
                         temp_met.append('')
-                # print(columns)
-                print(data.head())
-                print(data.columns)
                 try:
-                    # print('here')
                     smi_val = None
                     if 'smiles_search' in from_form:
-                        # sql=sql+" and molecule.SMILES_str like \'{}\'".format('%'+from_form['smiles'][0]+'%')
                         smarts = pybel.Smarts(from_form['smiles'][0])
                         smi_val = smarts
-                        # print(smarts)
                         for i in range(len(data)):
                             mol = pybel.readstring("smi",data.loc[i]['SMILES'])
                             smarts.obsmarts.Match(mol.OBMol)
                             if len(smarts.findall(mol))==0:
                                 data.drop(i,0,inplace=True)
-                        search_results=data
-                        search_results.columns=columns
                         if len(data)==0:
                             n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
                         else:
@@ -620,20 +599,16 @@ def search_db(db):
                     n_res='Invalid Smarts entered'
                     data=pd.DataFrame()
                 desc=['','']
-                # print(data)
                 columns =[]
                 for i in range(len(temp_met)):
                     columns.append((temp_col[i],temp_met[i]))
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
-                # print(keys)
                 kc = False
                 for i in keys:
                     if '_id' in i:
-                        # print(i)
                         kc = True
                 if kc == False:
-                    # print('abc')
                     data=data[data.columns[:2]]
                     columns=columns[:2]
                     desc = desc[:2]
@@ -641,10 +616,9 @@ def search_db(db):
                 is_download=False
                 to_order=False
                 noprev=True
-                # print_l('Preparing the results...','./')
                 db = db.replace('_chembddb','')
                 ini=0
-                if n_res < 50:
+                if type(n_res) != str and n_res < 50:
                     fin = n_res
                     nonext=True
                 else:
@@ -655,7 +629,6 @@ def search_db(db):
                 else:
                     return render_template('search_db.html',ini=0,fin=fin,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
         elif 'next-50' in request.form:
-            print(n_res)
             nonext=False
             counts = counts - 50
             from_form = request.form
@@ -666,7 +639,6 @@ def search_db(db):
             elif ' offset' in sql:
                 # checking the offset in the previous sql query, this number tells us how many results have been displayed already
                 n_res_done = int(sql[-4:-1])
-                # print(n_res_done)
                 sql = sql[:-4] + ' '+str(n_res_done + 50) +';'
                 n_res_done = n_res_done + 50
             else:
@@ -743,24 +715,25 @@ def search_db(db):
                     columns.append((temp_col[i],temp_met[i]))
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
+            if 'MW' in sql and 'value.property_id=' not in sql:
+                columns = columns[:2]
+                data = data[data.columns[:2]]
+                desc = ['','']
             data = tuple(data.itertuples(index=False,name=None))
             ini = n_res_done
-            if 'MW' in from_form:
-                return render_template('search_db.html',ini=ini,fin=fin, noprev=False,nonext=nonext, MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+            if 'MW' in sql and 'value.property_id=' not in sql:
+                return render_template('search_db.html',ini=ini,fin=fin, noprev=False,nonext=nonext,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
             else:
                 return render_template('search_db.html',ini=ini,fin=fin,nonext=nonext,noprev=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
         elif 'prev-50' in request.form:
-            print(n_res)
             noprev=False
             counts = counts + 50
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             n_res_done = 0
             if ' offset' in sql:
-                print(sql)
                 # checking the offset in the previous sql query, this number tells us how many results have been displayed already
                 n_res_done = int(sql[-4:-1])
-                # print(n_res_done)
                 sql = sql[:-4] + ' '+str(n_res_done - 50) +';'
                 n_res_done = n_res_done - 50
                 noprev = False
@@ -830,10 +803,15 @@ def search_db(db):
                     columns.append((temp_col[i],temp_met[i]))
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
+            
+            if 'MW' in sql and 'value.property_id=' not in sql:
+                columns = columns[:2]
+                data = data[data.columns[:2]]
+                desc = ['','']
             data = tuple(data.itertuples(index=False,name=None))
             ini = n_res_done
-            if 'MW' in from_form:
-                return render_template('search_db.html',ini=n_res_done,fin=fin,noprev = noprev, nonext=False,MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+            if 'MW' in sql and 'value.property_id=' not in sql:
+                return render_template('search_db.html',ini=n_res_done,fin=fin,noprev = noprev, nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
             else:
                 return render_template('search_db.html',ini=n_res_done,fin=fin, noprev = noprev,nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         elif 'download_csv' in request.form:
@@ -858,7 +836,6 @@ def search_db(db):
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
-            # print(search_results)
             if 'ascending' in from_form['select_order']:
                 search_results=search_results.sort_values(by=from_form['property_orderby'])
             else:
@@ -876,10 +853,8 @@ def search_db(db):
                         columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]+'-'+search_results.columns[i].split('-')[2]))
                     else:
                         columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))
-            # print_l('The results have been ordered in {} order of {}...'.format(from_form['select_order'],from_form['property_orderby']))
             return render_template('search_db.html',data = data,properties=properties,ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         else:
-            # print(properties)
             return render_template('search_db.html',properties=properties,methods=methods,is_download=is_download,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)
 
 @app.route('/molecule-<dbid>',methods=['GET','POST'])
@@ -892,36 +867,26 @@ def molecule(dbid):
     db=db.replace(' ','_')
     id=dbid.split('-')[1]
     sql = 'SELECT Molecule.id, Molecule.MW, Molecule.SMILES_str,Molecule.Molecule_identifier,Property.Property_str, Property.Unit, Model.method_name,  Functional.name, Basis_set.name,forcefield.name, Value.num_value from Molecule inner join value on Molecule.id=Value.Molecule_id inner join Property on Property.id=VALUE.property_id INNER JOIN Model on Value.model_id=Model.id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id=value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where Molecule.id={}'.format(id)
-    # print(sql)
     db=db+'_chembddb'
     cur.execute('USE {};'.format(db))
     cur.execute(sql)
     result=cur.fetchall()
-    # print(result)
     mol_data=pd.DataFrame(list(result),columns=['ID','MW','SMILES','Identifier','Property','Unit','Method','Functional','Basis_set','Forcefield','Value'])
     mol_data['ALL']=mol_data['ID'].astype(str) +',;'+mol_data['MW'].astype(str)+',;'+mol_data['SMILES']+',;'+mol_data['Identifier']
     mol_data['Property(Unit)']=mol_data['Property']+' ('+mol_data['Unit']+')\n'+'- '+mol_data['Method']+'('+mol_data['Functional']+'/'+mol_data['Basis_set']+')('+mol_data['Forcefield']+')'
-    # print(mol_data)
     mol_data=mol_data[['ALL','Property(Unit)','Value']]
-    # print(mol_data)
     mol_data=mol_data.pivot(index='ALL',columns='Property(Unit)')
     mol_data=mol_data['Value'].reset_index()
-    # print(mol_data)
     mol_data[['ID','MW','SMILES','Identifier']]=mol_data['ALL'].str.split(',;',expand=True)
     url_smi = urllib.parse.quote_plus(mol_data['SMILES'][0])
-    # mol_data[['Property(Unit)','Method']]=mol_data['Property(Unit)'].str.split('-',expand=True)
     cols=['ID','MW','SMILES','Identifier']
     for i in mol_data.columns[1:-4]:
         cols.append(i)
     mol_data=mol_data[cols]
-    # print(mol_data)
     mol_ob = pybel.readstring("smi",mol_data['SMILES'][0])
     mymol = pybel.readstring("smi", mol_ob.write("can"))
     mymol.make3D(forcefield='mmff94', steps=50)
-    print(app.config['UPLOAD FOLDER'])
     mymol.write('xyz',app.config['UPLOAD FOLDER']+'/chembddb_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
-    # mymol.write('xyz',app.config['UPLOAD FOLDER']+'mol.xyz',overwrite=True)
-    # f = open('./mol_{}.xyz'.format(mol_data['ID'][0]))
     cols=[c.replace('(na/na)','') for c in cols]
     cols=[c.replace('(na)','') for c in cols]
     cols=[c.replace('(na)','') for c in cols]
@@ -947,9 +912,7 @@ def delete(host='',user='',pw='',db=''):
                 all_dbs.append((m[:-9],))
         details=request.form
         details=details.to_dict(flat=True)
-        # print(details)
         if 'dbname' in details:
-            # print(basis_sets)
             dbname=details['dbname']+'_chembddb'
             cur.execute('use {};'.format(dbname))
             cur.execute('Select * from Property')
@@ -965,13 +928,13 @@ def delete(host='',user='',pw='',db=''):
             methods=[]
             for i in results:
                 methods.append(i[1])
+            dbname = dbname[:-9]
         if 'submit' in details:
             return render_template('delete.html',data=True,dbname=dbname,properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs)
         elif 'search-query' in details:
 
             if 'exampleRadios' not in details:
                 cur.execute('drop database {}'.format(details['dbname']))
-                # print('done')
                 cur.execute('show databases;')
                 all_dbs_tup=cur.fetchall()
                 all_dbs=[]
@@ -987,18 +950,16 @@ def delete(host='',user='',pw='',db=''):
                     mw_to=details['MW_to_val']
 
             else:
-                cur.execute('USE {};'.format(details['dbname']))
+                dbname = details['dbname'] + '_chembddb'
+                cur.execute('USE {};'.format(dbname))
                 keys=[i for i in details if '_id' in i]
                 # find molecule id if smiles_search in details
                 # find MW from and to
                 
                 for k in keys:
                     prop_id=int(details[k][0])
-                    # print(prop_id)
                     if details[k[:-3]+'_from_val']=='' and details[k[:-3]+'_to_val']=='':
-                        # print('here')
                         sql='DELETE FROM Property WHERE id={};'.format(prop_id)
-                        # print(sql)
                         cur.execute(sql)
                         cur.execute('use {};'.format(dbname))
                         cur.execute('Select * from Property')
@@ -1016,14 +977,11 @@ def delete(host='',user='',pw='',db=''):
                             methods.append(i[1])
                     else:
                         from_val=float(details[k[:-3]+'_from_val'])
-                        # print(from_val)
                         to_val=float(details[k[:-3]+'_to_val'])
-                        # print(to_val)
                         if from_val > to_val:
                             return render_template('delete.html',data=True, dbname=details['dbname'].replace('_chembddb',''),properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,err_msg='Minimum value for one of the properties is greater than the maximum value for it.')
                         else:
                             sql='DELETE FROM Value WHERE property_id={} and num_value > {} and num_value < {};'.format(prop_id,from_val,to_val)
-                            # print(sql)
                             cur.execute(sql)
             return render_template('delete.html',data=True, dbname=details['dbname'].replace('_chembddb',''),properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='Deleted from database {}.'.format(details['dbname'].replace('_chembddb','')))
         else:

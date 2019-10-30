@@ -46,24 +46,21 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                   <ul class="navbar-nav">
                     <li class="nav-item ">
-                      <a class="nav-link" style="color:#ffffff;" >Connect </a>
+                      <a class="nav-link" style="color:#ffffff;font-family: Exo;" >Connect </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href='/setup' style="color:#ffffff;" target='_blank'>Create</a>
+                        <a class="nav-link" href='/setup' style="color:#ffffff;font-family: Exo;" target='_blank'>Create</a>
                       </li>
                     <li class="nav-item ">
-                      <a class="nav-link" href='/insert' style="color:#ffffff;" target='_blank'>Insert</a>
+                      <a class="nav-link" href='/insert' style="color:#ffffff;font-family: Exo;" target='_blank'>Insert</a>
                     </li>
                     <li class="nav-item ">
-                        <a class="nav-link" href='/search' style="color:#ffffff;" target='_blank'>Search  </a>
-                    </li>
-                    <li class="nav-item">
-                            <a class="nav-link" style="color:#ffffff;" >Result</a>
+                        <a class="nav-link" href='/search' style="color:#ffffff;font-family: Exo;" target='_blank'>Search  </a>
                     </li>
                     <li class="nav-item active">
-                        <a class="nav-link" style="color:#ffffff;" ><span class="sr-only">(current)</span> Delete</a>
+                        <a class="nav-link" style="color:#ffffff;font-family: Exo;" ><span class="sr-only">(current)</span> Delete</a>
                     </li>
-                    <li class="nav-item dropdown">
+                    <!-- <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color:#ffffff;" >
                           All Databases
                         </a>
@@ -72,7 +69,7 @@
                           <a class="dropdown-item" href="#">{{adbs[0]}}</a>
                           {% endfor %}
                         </div>
-                      </li>
+                      </li> -->
                   </ul>
                 </div>
               </nav>
@@ -84,14 +81,14 @@
                 <div class="form-group">
                         <!-- <label for="dbname">Select database to delete/delete from:</label> -->
                         <!-- <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name"> -->
-                        <select name="dbs">
-                            {% for adbs in all_dbs %}
-                            <option value='{{adbs[0]}}'></option>
+                        <select name="dbname">
+                            {% for dbname in all_dbs %}
+                            <option id = "dbname" value='{{dbname[0]}}'>{{dbname[0]}}</option>
                             {% endfor %}
                         </select>
  
                 </div>
-                <button type="create" name='submit' class="btn btn-primary">Select</button>
+                <button type="create" name='submit' class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">Select</button>
                 </form>
                 {% else %}
                 <form name='search' action="" method="post">

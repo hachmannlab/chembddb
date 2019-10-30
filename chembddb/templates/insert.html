@@ -34,12 +34,9 @@
                         <a class="nav-link" href='/search' style="color:#ffffff;font-family:Exo;" target='_blank'>Search  </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Result</a>
-                    </li>
-                    <li class="nav-item">
                       <a class="nav-link" href='/delete' style="color:#ffffff;font-family:Exo;" target='_blank'>Delete</a>
                   </li>
-                    <li class="nav-item dropdown">
+                    <!-- <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color:#ffffff;font-family:Exo;" >
                           All Databases
                         </a>
@@ -48,7 +45,7 @@
                           <a class="dropdown-item" style="font-family:Exo;" href="#">{{adbs[0]}}</a>
                           {% endfor %}
                         </div>
-                      </li>
+                      </li> -->
                   </ul>
                 </div>
               </nav>
@@ -58,7 +55,12 @@
               <form name='insert_data_config' enctype=multipart/form-data method='POST'>
                   <div class="form-group">
                       <label for="dbname" style="font-family:Exo;">Database name</label>
-                      <input type="text" name='dbname' class="form-control" id="dbname" style="font-family:Exo;" placeholder="Name">
+                      <!-- <input type="text" name='dbname' class="form-control" id="dbname" style="font-family:Exo;" placeholder="Name"> -->
+                      <select name="dbname">
+                        {% for dbname in all_dbs %}
+                        <option id = "dbname" value='{{dbname[0]}}'>{{dbname[0]}}</option>
+                        {% endfor %}
+                    </select>
                       <small id="smiles" class="form-text text-muted" style="font-family:Exo;">Enter the name of the database you want to insert to.</small>
                     </div>
                 <div class="form-group">

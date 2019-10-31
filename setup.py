@@ -1,6 +1,6 @@
 import setuptools
 from os import path
-import chembddb
+# import chembddb
 
 here = path.abspath(path.dirname(__file__))
 

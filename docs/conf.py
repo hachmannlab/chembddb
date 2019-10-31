@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-#
 # Configuration file for the Sphinx documentation builder.
 #
-# This file does only contain a selection of the most common options. For a
-# full list see the documentation:
+# This file only contains a selection of the most common options. For a full
+# list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
 # -- Path setup --------------------------------------------------------------
@@ -22,7 +20,7 @@ import chembddb
 # -- Project information -----------------------------------------------------
 
 project = 'ChemBDDB'
-copyright = '2015-2019 Johannes Hachmann, Aditya Sonpal'
+copyright = '2019, Aditya Sonpal'
 author = 'Aditya Sonpal'
 
 # The short X.Y version
@@ -83,17 +81,10 @@ pygments_style = None
 #
 html_theme = 'sphinx_rtd_theme'
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#
-# html_theme_options = {}
-
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #

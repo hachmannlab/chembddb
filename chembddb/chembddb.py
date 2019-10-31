@@ -102,7 +102,7 @@ def setup(host='',user='',pw='',db=''):
     if result == 0:
         cur.execute('CREATE DATABASE %s;'%db)
         cur.execute('USE %s;'%db)
-        cur.execute('CREATE TABLE `%s`.`Molecule` (`id` INT NOT NULL AUTO_INCREMENT,`SMILES_str` VARCHAR(500) DEFAULT \'NONE\', `InChI` VARCHAR(200) DEFAULT \'NONE\',`MW` FLOAT, PRIMARY KEY (`id`));'%db)
+        cur.execute('CREATE TABLE `%s`.`Molecule` (`id` INT NOT NULL AUTO_INCREMENT,`SMILES_str` VARCHAR(500) DEFAULT \'NONE\', `InChI` VARCHAR(200) DEFAULT \'NONE\',`Molecule_identifier` VARCHAR(120) DEFAULT \'NONE\',`MW` FLOAT, PRIMARY KEY (`id`));'%db)
         # cur.execute('CREATE TABLE `%s`.`Credit`(`id` INT NOT NULL AUTO_INCREMENT,`DOI` VARCHAR(100) UNIQUE DEFAULT \'None\',`details` VARCHAR(100) DEFAULT \'None\',PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Property`(`id` INT NOT NULL AUTO_INCREMENT,`Property_str` VARCHAR(100) NOT NULL UNIQUE,`Unit` VARCHAR(100) NOT NULL,PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Model`(`id` INT NOT NULL AUTO_INCREMENT,`method_name` VARCHAR(100) NOT NULL UNIQUE,`options` VARCHAR(500),PRIMARY KEY (`id`));'%db)

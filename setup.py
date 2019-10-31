@@ -1,7 +1,6 @@
 import setuptools
 from os import path
-# import chembddb
-import versioneer
+import chembddb
 
 here = path.abspath(path.dirname(__file__))
 
@@ -12,7 +11,7 @@ with open(path.join(here, 'README.md')) as f:
 if __name__ == "__main__":
     setuptools.setup(
         name='chembddb',
-        version=versioneer.get_version(),
+        version=chembddb.__version__,
         author='Aditya Sonpal, Johannes Hachmann',
         author_email='adityaso@buffalo.edu, hachmann@buffalo.edu',
         # url='https://github.com/hachmannlab/chemml',

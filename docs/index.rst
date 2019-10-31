@@ -28,7 +28,7 @@ ChemBDDB is developed in the Python 3 programming language and uses MySQL, Flask
 Documentation:
 ++++++++++++++
 
-ChemBDDB documentation can be found here https://hachmannlab.github.io/chembddb
+ChemBDDB documentation can be found here https://chembddb.readthedocs.io/en/latest/chembddb.html
 
 Installation and Dependencies:
 ++++++++++++++++++++++++++++++

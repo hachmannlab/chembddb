@@ -13,7 +13,7 @@ Supriya Agarwal (UB): Initial framework
 ChemBDDB is developed in the Python 3 programming language and uses MySQL, Flask to set up a SQL database using pymysql. It uses OpenBabel and its Python extension, Pybel for handling molecules. The development follows a strictly modular and object-oriented design to make the overall code as flexible and versatile as possible. 
 
 ## Documentation:
-ChemBDDB documentation can be found here https://hachmannlab.github.io/chembddb
+ChemBDDB documentation can be found here https://chembddb.readthedocs.io/en/latest/chembddb.html
 
 ## Installation and Dependencies:
 Installing MySQL is a prerequisite for running ChemBDDB. General instructions:

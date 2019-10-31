@@ -10,7 +10,10 @@ dependencies:
     - sphinx-automodapi
     - nbsphinx
 
-      # chembddb depends
+channels:
+    - openbabel
+
+dependencies:
     - openbabel
 
     - pip:

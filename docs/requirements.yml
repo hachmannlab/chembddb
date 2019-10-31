@@ -1,7 +1,6 @@
 name: chembddb
 channels:
     - conda-forge
-    - openbabel
 
 dependencies:
     - python=3.7
@@ -13,8 +12,7 @@ dependencies:
 
       # chembddb depends
     - openbabel
-    - rdkit
-    
+
     - pip:
       - flask
       - flask-mysql

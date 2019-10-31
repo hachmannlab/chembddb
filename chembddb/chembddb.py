@@ -4,7 +4,11 @@ import os
 import sys
 import pandas as pd
 from copy import deepcopy
-import pybel
+try:
+    import pybel
+except:
+    from openbabel import pybel
+
 from flask import send_from_directory
 import numpy as np
 import time
@@ -392,7 +396,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 else:
                     cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
                     print('value table populated')
-                    con.commit() 
+                    con.commit()
                     db=db.replace('_chembddb','')
                     db=db.replace('_',' ')
                     if host=='':
@@ -945,10 +949,20 @@ def delete(host='',user='',pw='',db=''):
                 return render_template('delete.html',data=True,properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='database {} deleted'.format(details['dbname']))
 
             elif details['exampleRadios']=='option1':
-                if details['MW']!='':
+                if 'MW' in details and details['MW']!='':
                     mw_from=details['MW_from_val']
                     mw_to=details['MW_to_val']
-
+                if 'smiles_search' in details:
+                    smi = details['smiles']
+                    smi_obj = pybel.readstring('smi',smi)
+                    can_smi = smi_obj.write('can').strip()
+                    mol_wt = round(smi_obj.molwt,3)
+                    cur.execute('select id,SMILES_str,MW from molecule where SMILES_str=\'{0}\' and (MW-{1}) < 0.00001;'.format(can_smi,mol_wt))
+                    to_delete=list(cur.fetchall())
+                    sql = 'delete from value where molecule_id={};'.format(to_delete[0][0])
+                    cur.execute(sql)
+                    cur.execute('delete from molecule where id={};'.format(to_delete[0][0]))
+                    con.commit()
             else:
                 dbname = details['dbname'] + '_chembddb'
                 cur.execute('USE {};'.format(dbname))
@@ -983,6 +997,17 @@ def delete(host='',user='',pw='',db=''):
                         else:
                             sql='DELETE FROM Value WHERE property_id={} and num_value > {} and num_value < {};'.format(prop_id,from_val,to_val)
                             cur.execute(sql)
+                            cur.execute('select id from molecule')
+                            mol_ids = cur.fetchall()
+                            cur.execute('select molecule_id from value')
+                            mol_ids_val = cur.fetchall()
+                            to_delete = []
+                            mol_ids_val = set(mol_ids_val)
+                            for i in mol_ids:
+                                if i not in mol_ids_val:
+                                    to_delete.append(i[0])
+                            cur.execute('delete from molecule where id in {};'.format(str(tuple(to_delete))))
+                            con.commit()
             return render_template('delete.html',data=True, dbname=details['dbname'].replace('_chembddb',''),properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='Deleted from database {}.'.format(details['dbname'].replace('_chembddb','')))
         else:
             return render_template('delete.html',all_dbs=all_dbs)

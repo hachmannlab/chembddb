@@ -4,11 +4,6 @@
 ChemBDDB: A Big Data Database Toolkit for Chemical and Materials Data Storage
 ==============================================================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-
 ChemBDDB is a big data database toolkit which facilitates the efficient management and sharing of chemical and materials data. It can setup a database, populate it with the data provided by the user and enable the user to search the database, visualize each molecule in the database and share the data via the web.
 
 Program Version: 0.1
@@ -24,11 +19,6 @@ Code Design:
 ++++++++++++
 
 ChemBDDB is developed in the Python 3 programming language and uses MySQL, Flask to set up a SQL database using pymysql. It uses OpenBabel and its Python extension, Pybel for handling molecules. The development follows a strictly modular and object-oriented design to make the overall code as flexible and versatile as possible.
-
-Documentation:
-++++++++++++++
-
-ChemBDDB documentation can be found here https://chembddb.readthedocs.io/en/latest/chembddb.html
 
 Installation and Dependencies:
 ++++++++++++++++++++++++++++++
@@ -56,10 +46,18 @@ Installing MySQL is a prerequisite for running ChemBDDB. General instructions:
 
                 pytest -v
 
+Documentation:
+++++++++++++++
+
+ChemBDDB documentation can be found here https://chembddb.readthedocs.io/en/latest/chembddb.html
+
+.. toctree::
+    chebddb.chembddb
+
 Citation:
 +++++++++
 
-- Sonpal, A.; Agrawal, S.; Sivaraj, S.; Hachmann, J.Chem-BDDB– A Big Data Database Toolkit for Chemical and Materials Data Storage. 2019;https://github.com/hachmannlab/chembddb
+- Sonpal, A.; Agrawal, S.; Sivaraj, S.; Hachmann, ChemBDDB – A Big Data Database Toolkit for Chemical and Materials Data Storage. 2019;https://github.com/hachmannlab/chembddb
 
 - J. Hachmann, M.A.F. Afzal, M. Haghighatlari, Y. Pal, Building and Deploying a Cyberinfrastructure for the Data-Driven Design of Chemical Systems and the Exploration of Chemical Space, Mol. Simul. 44 (2018), 921-929. DOI: 10.1080/08927022.2018.1471692
 

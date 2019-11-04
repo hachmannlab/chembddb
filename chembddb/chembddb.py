@@ -68,14 +68,17 @@ def setup(host='',user='',pw='',db=''):
 
     Parameters
     ----------
-    host='': 
-    user='': 
-    pw='': 
-    name='': 
-
+    host: str default=''
+        the hostname is the domain name or server name
+    user: str default=''
+        the username for mysql
+    pw: str default=''
+        the password for mysql
+    db: str default=''
+        the name of the database that needs to be set up
     Returns
     -------
-    True/False in case of success/faliure
+    success/failure message
     """
     if host != '':
         b, a = connect_mysql(host=host,user=user,pw=pw)
@@ -133,15 +136,41 @@ def setup(host='',user='',pw='',db=''):
         if host == '':
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,success_msg='The database has been created.')
         else:
-            return True
+            return 'Success'
     else:
         if host == '':
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,err_msg='Database already exists.')
         else:
-            return False
+            return 'Failed! Database already exists.'
 
 @app.route('/insert',methods=['GET','POST'])
 def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file='',data_file=''):
+    """
+    Function to insert data into an existing database
+
+    Parameters
+    ----------
+    host: str default=''
+        the hostname is the domain name or server name
+    user: str default=''
+        the username for mysql
+    pw: str default=''
+        the password for mysql
+    db: str default=''
+        the name of the database that needs to be set up
+    smi_col: str default=''
+        name/header of the smiles column in your data (csv) file 
+    mol_identifier: str default=''
+        name/header of any other molecule identifier in your data (csv) file
+    conf_file: str default=''
+        path to the file containing all the configurations/options (csv); property names should be the same as the column headers in your data (csv) file
+    data_file: str default=''
+        path to the file containing the data that needs to be entered into the database
+
+    Returns
+    -------
+    True/False in case of success/faliure
+    """
     mi_cols=[]
     cur.execute('show databases;') 
     all_dbs_tup=cur.fetchall()
@@ -168,7 +197,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
         if host == '':
             return render_template('insert.html',all_dbs=all_dbs,err_msg=error_message)
         else:
-            return False
+            return 'Failed! Database already exists.'
     else:
         if type(conf_file) is str and conf_file=='':
             files=request.files
@@ -210,7 +239,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
             if host=='':
                 return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Property(s) in config file do not exist in data.')
             else:
-                return False
+                return 'Failed! Property(s) in config file do not exist in data.'
         else:
             if smi_col!='' and smi_col not in data.columns:
                 all_mols=False
@@ -222,7 +251,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     db=db.replace('_',' ')
                     return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Identifier(s) listed do not exist in data.')
                 else:
-                    return False
+                    return 'Failed! Identifier(s) listed do not exist in data.'
             else:
                 cur.execute('USE %s;'%db)
                 db = db.replace('_chembddb','')
@@ -304,7 +333,10 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                                 mw = round(mw,3)
                             except:
                                 db=db.replace('_',' ')
-                                return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
+                                if host!='':
+                                    return 'Failed, Invalid SMILES at position %d.'%str(mol)
+                                else:
+                                    return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
                             new_entries.append((smiles,'None',mw))
                     else:
                         try:
@@ -314,7 +346,10 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                             mw = round(mw,3)
                         except:
                             db=db.replace('_',' ')
-                            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
+                            if host!='':
+                                return 'Failed, Invalid SMILES at position %d.'%str(mol)
+                            else:
+                                return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
                         new_entries.append((smiles,data.loc[mol][mol_identifier],mw))
 
                 # temporary fix to enable for case-insensitivity in molecule-identifier
@@ -392,7 +427,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     if host=='':
                         return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicates entries for all molecules exist.')
                     else:
-                        return False
+                        return 'Failed! Duplicate entries for all molecules exist.'
                 else:
                     cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
                     print('value table populated')
@@ -401,11 +436,14 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     db=db.replace('_',' ')
                     if host=='':
                         if to_drop != []:
-                            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were note entered due to duplicate entries',success_msg='The database has been successfully populated')
+                            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
                         else:
                             return render_template('insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
                     else:
-                        return True
+                        if to_drop != []:
+                            return 'A few molecules were not entered due to duplicate entries but the database was successfully populated with the rest'
+                        else:
+                            return 'Successfully entered the data into the database'
 
 @app.route('/search',methods=['GET','POST'])
 def search():
@@ -902,10 +940,32 @@ def molecule(dbid):
 
 @app.route('/delete',methods=['GET','POST'])
 def delete(host='',user='',pw='',db=''):
+    """
+    Delete a database that was created using chembddb or delete data from one.
+
+    Parameters
+    ----------
+    host: str default=''
+        the hostname is the domain name or server name
+    user: str default=''
+        the username for mysql
+    pw: str default=''
+        the password for mysql
+    db: str default=''
+        the name of the database that needs to be set up
+
+    Returns
+    -------
+    Success/failure message
+    """
     if db !='':
-        a,b = connect_mysql(host=host,user=user,pw=pw)
-        cur.execute('drop database %s;'%db)
-        return True
+        try:
+            db = db+'_chembddb'
+            a,b = connect_mysql(host=host,user=user,pw=pw)
+            cur.execute('drop database %s;'%db)
+            return 'Successfully deleted the database'
+        except:
+            return 'Failed! database does not exist'
     else:
         cur.execute('show databases;')
         all_dbs=[]

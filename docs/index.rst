@@ -49,8 +49,6 @@ Installing MySQL is a prerequisite for running ChemBDDB. General instructions:
 Documentation:
 ++++++++++++++
 
-ChemBDDB documentation can be found here https://chembddb.readthedocs.io/en/latest/chembddb.html
-
 .. toctree::
     chebddb.chembddb
 

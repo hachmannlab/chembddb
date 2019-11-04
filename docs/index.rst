@@ -50,7 +50,7 @@ Documentation:
 ++++++++++++++
 
 .. toctree::
-    chebddb
+    chembddb
 
 Citation:
 +++++++++

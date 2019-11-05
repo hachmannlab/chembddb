@@ -424,7 +424,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 data['property_id']=data['variable'].apply(lambda a: prop_id[a])
                 data['model_id']=data['variable'].apply(lambda a: model_id[conf.loc[conf['properties'].tolist().index(a)]['methods']])
                 data['functional_id']=data['variable'].apply(lambda a: functional_id[conf.loc[conf['properties'].tolist().index(a)]['functional']])
-                data['Basis_id']=data['variable'].apply(lambda a: basis_id[conf.loc[conf['properties'].tolist().index(a)]['basis']])
+                data['basis_id']=data['variable'].apply(lambda a: basis_id[conf.loc[conf['properties'].tolist().index(a)]['basis']])
                 data['ff_id']=data['variable'].apply(lambda a: ff_id[conf.loc[conf['properties'].tolist().index(a)]['forcefield']])
                 data.drop('variable',1,inplace=True)
                 to_drop = []
@@ -447,7 +447,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         return 'Failed! Duplicate entries for all molecules exist.'
                 else:
-                    cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
+                    cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
                     # print('value table populated')
                     con.commit()
                     db=db.replace('_chembddb','')

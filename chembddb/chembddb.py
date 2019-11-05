@@ -447,7 +447,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         return 'Failed! Duplicate entries for all molecules exist.'
                 else:
-                    cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
+                    cur.executemany('INSERT INTO Value(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
                     # print('value table populated')
                     con.commit()
                     db=db.replace('_chembddb','')

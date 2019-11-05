@@ -26,7 +26,7 @@ def test_insert(host, user, pw, db, smi_col, mol_identifier, conf_file, data_fil
     result = chembddb.insert(host=host, user=user, pw=pw, db=db, smi_col=smi_col, mol_identifier=mol_identifier, conf_file=conf_file, data_file=data_file)
     assert result == res
 
-@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','','ben','Successfully deleted the database'),('127.0.0.1','root','','ben','Failed! database does not exist')])
-def test_delete(host, user, pw, db, res):
-    result = chembddb.delete(host=host, user=user, pw=pw, db=db)
-    assert result == res
+# @pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','','ben','Successfully deleted the database'),('127.0.0.1','root','','ben','Failed! database does not exist')])
+# def test_delete(host, user, pw, db, res):
+#     result = chembddb.delete(host=host, user=user, pw=pw, db=db)
+#     assert result == res

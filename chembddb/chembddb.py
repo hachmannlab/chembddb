@@ -130,10 +130,10 @@ def setup(host='',user='',pw='',db=''):
             if '_chembddb' in i[0]:
                 m=i[0]
                 all_dbs.append((m[:-9],))
-
         if host == '':
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,success_msg='The database has been created.')
         else:
+            print(all_dbs)
             return 'Success'
     else:
         if host == '':
@@ -289,6 +289,11 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
                 # print('method table populated')
                 # populating the functional table
+                ####testing####
+                cur.execute('show tables;')
+                tabs=cur.fetchall()
+                print(tabs)
+                ####testing####
                 cur.execute("SELECT name FROM functional")
                 functionals = cur.fetchall()
                 entered_list = []

@@ -429,7 +429,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 data.drop('variable',1,inplace=True)
                 to_drop = []
                 id = tuple(data['molecule_id'])
-                cur.execute('select * from value where molecule_id in {}'.format(str(id)))
+                cur.execute('select * from Value where molecule_id in {}'.format(str(id)))
                 vals = cur.fetchall()
                 vals = [list(x) for x in vals]
                 vals = pd.DataFrame(vals, columns=['id','value','model_id', 'property_id','molecule_id', 'functional_id','basis_id','ff_id'])

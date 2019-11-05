@@ -376,7 +376,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 molecules = tuple(tuple(x) for x in molecules)
                 new_entries = tuple(tuple(x) for x in new_entries)
                 required_entries = list(set(new_entries) - set(molecules))
-                cur.executemany('INSERT INTO MOLECULE(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
+                cur.executemany('INSERT INTO Molecule(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
                 # print('molecule table populated')
                 # populating the credit table
                 # todo: figure out how to deal with the credit/publication
@@ -432,7 +432,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 cur.execute('select * from value where molecule_id in {}'.format(str(id)))
                 vals = cur.fetchall()
                 vals = [list(x) for x in vals]
-                vals = pd.DataFrame(vals, columns=['id','value','model_id', 'property_id','molecule_id', 'functional_id','Basis_id','ff_id'])
+                vals = pd.DataFrame(vals, columns=['id','value','model_id', 'property_id','molecule_id', 'functional_id','basis_id','ff_id'])
                 check_data = data.drop('value',1)
                 vals = vals[check_data.columns]
                 vals = [list(vals.loc[x]) for x in range(len(vals))]

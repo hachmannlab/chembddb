@@ -1000,9 +1000,9 @@ def delete(host='',user='',pw='',db=''):
             results=cur.fetchall()
             cur.execute("Select * from Functional")
             functionals=cur.fetchall()
-            cur.execute("Select * from basis_set")
+            cur.execute("Select * from Basis_set")
             basis_sets=cur.fetchall()
-            cur.execute("Select * from forcefield")
+            cur.execute("Select * from Forcefield")
             forcefields=cur.fetchall()
             methods=[]
             for i in results:
@@ -1032,11 +1032,11 @@ def delete(host='',user='',pw='',db=''):
                     smi_obj = pybel.readstring('smi',smi)
                     can_smi = smi_obj.write('can').strip()
                     mol_wt = round(smi_obj.molwt,3)
-                    cur.execute('select id,SMILES_str,MW from molecule where SMILES_str=\'{0}\' and (MW-{1}) < 0.00001;'.format(can_smi,mol_wt))
+                    cur.execute('select id,SMILES_str,MW from Molecule where SMILES_str=\'{0}\' and (MW-{1}) < 0.00001;'.format(can_smi,mol_wt))
                     to_delete=list(cur.fetchall())
-                    sql = 'delete from value where molecule_id={};'.format(to_delete[0][0])
+                    sql = 'delete from Value where molecule_id={};'.format(to_delete[0][0])
                     cur.execute(sql)
-                    cur.execute('delete from molecule where id={};'.format(to_delete[0][0]))
+                    cur.execute('delete from Molecule where id={};'.format(to_delete[0][0]))
                     con.commit()
             else:
                 dbname = details['dbname'] + '_chembddb'
@@ -1057,9 +1057,9 @@ def delete(host='',user='',pw='',db=''):
                         results=cur.fetchall()
                         cur.execute("Select * from Functional")
                         functionals=cur.fetchall()
-                        cur.execute("Select * from basis_set")
+                        cur.execute("Select * from Basis_set")
                         basis_sets=cur.fetchall()
-                        cur.execute("Select * from forcefield")
+                        cur.execute("Select * from Forcefield")
                         forcefields=cur.fetchall()
                         methods=[]
                         for i in results:
@@ -1072,16 +1072,16 @@ def delete(host='',user='',pw='',db=''):
                         else:
                             sql='DELETE FROM Value WHERE property_id={} and num_value > {} and num_value < {};'.format(prop_id,from_val,to_val)
                             cur.execute(sql)
-                            cur.execute('select id from molecule')
+                            cur.execute('select id from Molecule')
                             mol_ids = cur.fetchall()
-                            cur.execute('select molecule_id from value')
+                            cur.execute('select molecule_id from Value')
                             mol_ids_val = cur.fetchall()
                             to_delete = []
                             mol_ids_val = set(mol_ids_val)
                             for i in mol_ids:
                                 if i not in mol_ids_val:
                                     to_delete.append(i[0])
-                            cur.execute('delete from molecule where id in {};'.format(str(tuple(to_delete))))
+                            cur.execute('delete from Molecule where id in {};'.format(str(tuple(to_delete))))
                             con.commit()
             return render_template('delete.html',data=True, dbname=details['dbname'].replace('_chembddb',''),properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='Deleted from database {}.'.format(details['dbname'].replace('_chembddb','')))
         else:

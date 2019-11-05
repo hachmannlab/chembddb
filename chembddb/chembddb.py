@@ -76,9 +76,7 @@ def setup(host='',user='',pw='',db=''):
         the password for mysql
     db: str default=''
         the name of the database that needs to be set up
-    Returns
-    -------
-    success/failure message
+
     """
     if host != '':
         b, a = connect_mysql(host=host,user=user,pw=pw)
@@ -167,9 +165,6 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
     data_file: str default=''
         path to the file containing the data that needs to be entered into the database
 
-    Returns
-    -------
-    True/False in case of success/faliure
     """
     mi_cols=[]
     cur.execute('show databases;') 
@@ -197,7 +192,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
         if host == '':
             return render_template('insert.html',all_dbs=all_dbs,err_msg=error_message)
         else:
-            return 'Failed! Database already exists.'
+            return 'Failed! Database does not exists.'
     else:
         if type(conf_file) is str and conf_file=='':
             files=request.files
@@ -209,19 +204,33 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
             if conf_file.filename=='' or conf_file.filename.rsplit('.',1)[1]!='csv':
                 db.replace('_chembddb','')
                 db=db.replace('_',' ')
-                return render_template('insert.html',title=db,err_msg='No config file provided or incorrect file format. (csv required)')
+                if host == '':
+                    return render_template('insert.html',title=db,err_msg='No config file provided or incorrect file format. (csv required)')
+                else:
+                    return 'Failed to insert all data! No config file provided or incorrect file format. (csv required)'
             elif data_file.filename=='' or data_file.filename.rsplit('.',1)[1]!='csv':
                 db.replace('_chembddb','')
                 db=db.replace('_',' ')
-                return render_template('insert.html',title=db,err_msg='No data file provided or incorrect file format. (csv required)')
+                if host == '':
+                    return render_template('insert.html',title=db,err_msg='No data file provided or incorrect file format. (csv required)')
+                else:
+                    return 'Failed to insert all data! No data file provided or incorrect file format. (csv required)'
             elif smi_col=='' and mol_identifier=='':
                 db.replace('_chembddb','')
                 db=db.replace('_',' ')
-                return render_template('insert.html',title=db,err_msg='No molecule identifiers provided.')
+                if host == '':
+                    return render_template('insert.html',title=db,err_msg='No molecule identifiers provided.')
+                else:
+                    return 'No molecule identifiers provided'
             conf=pd.read_csv(conf_file)
             data=pd.read_csv(data_file)
 
         elif type(conf_file) is str and conf_file!='':
+            if os.path.exists(conf_file) == False:
+                return 'Failed! Config file does not exist in the path specified'
+            if os.path.exists(data_file) == False:
+                return 'Failed! Data file does not exist in the path specified.'
+
             conf=pd.read_csv(conf_file)
             data=pd.read_csv(data_file)
         else:
@@ -267,7 +276,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(prop)
                         cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
-                print('property table populated')
+                # print('property table populated')
                 # populating the model table
                 cur.execute("SELECT Method_name from Model")
                 models = cur.fetchall()
@@ -278,7 +287,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(method)
                         cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
-                print('method table populated')
+                # print('method table populated')
                 # populating the functional table
                 cur.execute("SELECT name FROM functional")
                 functionals = cur.fetchall()
@@ -289,7 +298,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(func)
                         cur.execute("INSERT INTO Functional(name) VALUES(%s)",[func])
-                print('functional table populated')
+                # print('functional table populated')
                 # populating the basis_set table
                 cur.execute("SELECT name FROM Basis_set")
                 basis_sets = cur.fetchall()
@@ -301,7 +310,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         entered_list.append(basis)
                         cur.execute("INSERT INTO Basis_set(name) VALUES(%s)",[basis])
 
-                print('basis table populated')
+                # print('basis table populated')
                 # populating the forcefield table
                 cur.execute("SELECT name FROM Forcefield")
                 forcefields = cur.fetchall()
@@ -312,7 +321,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(basis)
                         cur.execute("INSERT INTO Forcefield(name) VALUES(%s)",[ff])
-                print('ff table populated')
+                # print('ff table populated')
                 # populating the molecule table
                 cur.execute("SELECT SMILES_str,Molecule_identifier,MW from Molecule")
                 molecules = cur.fetchall()
@@ -354,12 +363,16 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
 
                 # temporary fix to enable for case-insensitivity in molecule-identifier
                 molecules = [list(x) for x in molecules]
+                new_entries = [list(x) for x in new_entries]
                 for i in molecules:
                     i[1] = i[1].lower()
+                for i in new_entries:
+                    i[1] = i[1].lower()
                 molecules = tuple(tuple(x) for x in molecules)
+                new_entries = tuple(tuple(x) for x in new_entries)
                 required_entries = list(set(new_entries) - set(molecules))
                 cur.executemany('INSERT INTO MOLECULE(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
-                print('molecule table populated')
+                # print('molecule table populated')
                 # populating the credit table
                 # todo: figure out how to deal with the credit/publication
                 # cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
@@ -430,7 +443,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         return 'Failed! Duplicate entries for all molecules exist.'
                 else:
                     cur.executemany('INSERT INTO VALUE(molecule_id,num_value,property_id,model_id,functional_id,Basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
-                    print('value table populated')
+                    # print('value table populated')
                     con.commit()
                     db=db.replace('_chembddb','')
                     db=db.replace('_',' ')
@@ -954,9 +967,6 @@ def delete(host='',user='',pw='',db=''):
     db: str default=''
         the name of the database that needs to be set up
 
-    Returns
-    -------
-    Success/failure message
     """
     if db !='':
         try:

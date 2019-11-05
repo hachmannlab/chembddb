@@ -7,8 +7,8 @@ Program Version: 0.1
 
 Release Date: July 5, 2019
 
-With contributions by:
-Shirish Sivraj (UB): Molecule visualization
+With contributions by:<br/> 
+Shirish Sivraj (UB): Molecule visualization <br/> 
 Supriya Agarwal (UB): Initial framework
 
 ## Code Design:

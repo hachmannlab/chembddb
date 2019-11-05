@@ -1,0 +1,4 @@
+Code,smiles,Polarizability,number density
+14_1_8_4_8_1_26,Cc1ccc(cc1)Cc1cccc(c1)C(c1cccc(c1)Cc1ccc(cc1)C(c1ccccc1)(c1ccccc1)c1ccccc1)C,304.98154,1.21E+27
+23_3_11_3_7_2_12,c1nnc(s1)Sc1ccc(cc1)Oc1ccc(s1)Oc1ccc2c(c1)cccc2,529.74841,2.2E+27
+14_1_15_4_12_6_25,Cc1cc(Cc2ccc(cc2)C)cc(c1)C(c1nnc(s1)S(=O)(=O)c1ccc2c(c1)c1ccccc1s2)C,328.33614,1.58E+27

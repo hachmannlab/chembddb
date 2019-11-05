@@ -294,7 +294,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 tabs=cur.fetchall()
                 print(tabs)
                 ####testing####
-                cur.execute("SELECT name FROM functional")
+                cur.execute("SELECT name FROM Functional")
                 functionals = cur.fetchall()
                 entered_list = []
                 for func in conf['functional']:

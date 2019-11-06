@@ -133,7 +133,6 @@ def setup(host='',user='',pw='',db=''):
         if host == '':
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,success_msg='The database has been created.')
         else:
-            print(all_dbs)
             return 'Success'
     else:
         if host == '':
@@ -292,7 +291,6 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 ####testing####
                 cur.execute('show tables;')
                 tabs=cur.fetchall()
-                print(tabs)
                 ####testing####
                 cur.execute("SELECT name FROM Functional")
                 functionals = cur.fetchall()

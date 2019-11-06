@@ -30,3 +30,4 @@ def test_insert(host, user, pw, db, smi_col, mol_identifier, conf_file, data_fil
 def test_delete(host, user, pw, db, res):
     result = chembddb.delete(host=host, user=user, pw=pw, db=db)
     assert result == res
+

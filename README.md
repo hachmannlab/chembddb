@@ -1,5 +1,6 @@
 [![license](http://img.shields.io/badge/license-BSD-blue.svg?style=flat)](https://github.com/hachmannlab/chemml/blob/master/LICENSE)
 [![Build Status](https://travis-ci.org/hachmannlab/chembddb.svg?branch=master)](https://travis-ci.org/hachmannlab/chembddb)
+[![Documentation Status](https://readthedocs.org/projects/chembddb/badge/?version=latest)](https://chembddb.readthedocs.io/en/latest/?badge=latest)
 # ChemBDDB
 ChemBDDB is a big data database toolkit which facilitates the efficient management and sharing of chemical and materials data. It can setup a database, populate it with the data provided by the user and enable the user to search the database, visualize each molecule in the database and share the data via the web.
 

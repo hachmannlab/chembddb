@@ -777,6 +777,12 @@ def search_db(db):
                 columns = columns[:2]
                 data = data[data.columns[:2]]
                 desc = ['','']
+            
+            if 'order by' in sql:
+                if 'DESC' in sql:        
+                    data=data.sort_values(by=data.columns[-1],ascending=False)
+                else:
+                    data=data.sort_values(by=data.columns[-1])
             data = tuple(data.itertuples(index=False,name=None))
             ini = n_res_done
             if 'MW' in sql and 'value.property_id=' not in sql:
@@ -800,6 +806,7 @@ def search_db(db):
 
             if n_res_done ==0:
                 noprev = True
+                nonext = False
             cur.execute(sql)
             data1=cur.fetchall() 
             data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
@@ -866,6 +873,11 @@ def search_db(db):
                 columns = columns[:2]
                 data = data[data.columns[:2]]
                 desc = ['','']
+            if 'order by' in sql:
+                if 'DESC' in sql:        
+                    data=data.sort_values(by=data.columns[-1],ascending=False)
+                else:
+                    data=data.sort_values(by=data.columns[-1])
             data = tuple(data.itertuples(index=False,name=None))
             ini = n_res_done
             if 'MW' in sql and 'value.property_id=' not in sql:
@@ -876,9 +888,30 @@ def search_db(db):
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             desc=['','']
+            ## re-executing query to get all results
+            cur.execute(sql[:sql.rindex(')')+1]+';')
+            all_results = cur.fetchall()
+            data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+            data = data[data.columns[-3:]]
+            data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+            data = data.reset_index()
+            data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)  
+            columns=['ID','SMILES']          
+            for i in data.columns[1:-2]:
+                    columns.append(i)
+            data=data[columns]
+            columns=[c.replace('(NA/NA)','') for c in columns]
+            columns=[c.replace('(na/na)','') for c in columns]
+            columns=[c.replace('(NA)','') for c in columns]
+            columns=[c.replace('(na)','') for c in columns]
+            data.columns = columns
+            data.to_csv('results.csv',index=None)
+            ## results that go to the html are still limited to 50
             for i in search_results.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
-            search_results.to_csv('results.csv',index=None)
+            # search_results.to_csv('results.csv',index=None)
             msg='Results have been downloaded as results.csv'
             data = tuple(search_results.itertuples(index=False,name=None))
             columns=[]
@@ -895,9 +928,93 @@ def search_db(db):
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
             if 'ascending' in from_form['select_order']:
+                if 'order by' not in sql:
+                    sql = sql[:sql.rindex(')')+1]+ ' order by value.num_value ' + sql[sql.rindex(')')+1:]
+                    cur.execute(sql)
+                    all_results=cur.fetchall() 
+                    data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                    data = data[data.columns[-3:]]
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    search_results = data              
+                    search_results.columns = columns
+                elif 'order by' in sql and 'DESC' in sql:
+                    sql = sql[:sql.rindex('value')+5] + ' ' + sql[sql.rindex('value')+11:]
+                    cur.execute(sql)
+                    all_results=cur.fetchall() 
+                    data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                    data = data[data.columns[-3:]]
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    search_results = data              
+                    search_results.columns = columns
                 search_results=search_results.sort_values(by=from_form['property_orderby'])
             else:
-                search_results=search_results.sort_values(by=from_form['property_orderby'],ascending=False)
+                if 'order by' in sql and 'DESC' not in sql:
+                    sql = sql[:sql.rindex('value')+5] + ' DESC' + sql[sql.rindex('value')+5:]
+                    cur.execute(sql)
+                    data1=cur.fetchall() 
+                    data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                    data = data[data.columns[-3:]]
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    search_results = data              
+                    search_results.columns = columns
+                elif 'order by' not in sql:
+                    sql = sql[:sql.rindex(')')+1]+ ' order by value.num_value DESC ' + sql[sql.rindex(')')+1:]
+                    cur.execute(sql)
+                    data1=cur.fetchall() 
+                    data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                    data = data[data.columns[-3:]]
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    search_results = data              
+                    search_results.columns = columns
+                search_results=search_results.sort_values(by=from_form['property_orderby'],ascending=False)    
             desc=['','']
             data = tuple(search_results.itertuples(index=False,name=None))
             for i in search_results.columns[2:]:

@@ -52,6 +52,7 @@ Documentation:
 .. toctree::
     chembddb
     chembddb.python_api
+    chembddb.python_api_tutorial
 
 Citation:
 +++++++++

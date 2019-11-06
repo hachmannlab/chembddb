@@ -1,5 +1,5 @@
-Getting Started
-===============
+Getting started with ChemBDDB
+=============================
 
 The chembddb module is executed from the following command line:
 
@@ -27,7 +27,7 @@ Before these four tasks, chembddb requires the user to connect to their mysql se
    :alt: connect2 page
     
 Setup
-=====
++++++
 
 - enter the name of the database that needs to be set up 
 .. image:: ./images/setup.png
@@ -86,7 +86,7 @@ Setup
        :alt: value table
 
 Insert
-======
+++++++
 
 - on the insert page the user is first required to select a database from a list of all databases created using the ChemBDDB schema
 
@@ -114,7 +114,7 @@ these files can be uploaded directly on the browser
     :alt: insert page
 
 Search
-======
+++++++
 
 - the user can search the database using a single or multiple search criteria together, these criteria include:
 
@@ -151,7 +151,7 @@ Search
     :alt: results page
 
 Delete
-======
+++++++
 
 - the user can also delete entries from a database, or delete the entire database
 

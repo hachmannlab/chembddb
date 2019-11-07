@@ -1,5 +1,5 @@
-ChemBDDB Python API Tutorial
-============================
+ChemBDDB Python Module Tutorial
+===============================
 
 The setup, insert, and delete modules of chembddb can also be called using python code, making it easier to use and simple. 
 

@@ -508,7 +508,6 @@ def search_db(db):
             methods.append(i[1])
         if request.method == 'POST' and 'search-query' in request.form:
             from_form = request.form
-            sql='select value.molecule_id,molecule.SMILES_str,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
             from_form = from_form.to_dict(flat=False)
             keys=[i for i in from_form if '_id' in i]
             min_max_err=False
@@ -520,6 +519,7 @@ def search_db(db):
                 p.append(list(pr))
             properties = p
             if len(keys)>0:
+                sql='select value.molecule_id,molecule.SMILES_str,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
                 for k in keys:
                     prop_id=int(from_form[k][0])
                     props.append(prop_id)
@@ -540,6 +540,8 @@ def search_db(db):
                         valsid = valsid + '(' + str(props[i])
                 valsid = valsid +')'
                 sql = sql +valsid
+            else:
+                sql = 'select id, SMILES_str, MW from Molecule where '
             MW_to = None
             if 'MW' in from_form:
                 from_val=float(from_form['MW_from_val'][0])
@@ -549,11 +551,10 @@ def search_db(db):
                 if from_val > to_val:
                     min_max_err=True
                 if len(keys)!=0:
-                    sql=sql+" and molecule.MW > {} and molecule.MW < {}".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
+                    sql=sql+" and molecule.MW > {} and molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
                 else:
-                    sql=sql+" molecule.MW > {} and molecule.MW < {}".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
+                    sql=sql+" molecule.MW > {} and molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
                     keys.append('MW')
-
             if 'smiles_search' in from_form:
                 if len(keys)==0:
                     sql=sql[:-6]
@@ -608,25 +609,28 @@ def search_db(db):
                     return render_template('search_db.html',properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
             else:
                 cur.execute(sql)
-                data1=cur.fetchall() 
-                data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                data = data[data.columns[-3:]]
-                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                data = data.reset_index()
-                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                columns=['ID','SMILES']
-
-                for i in data.columns[1:-2]:
-                    columns.append(i)
-                data=data[columns]
-                columns=[c.replace('(NA/NA)','') for c in columns]
-                columns=[c.replace('(na/na)','') for c in columns]
-                columns=[c.replace('(NA)','') for c in columns]
-                columns=[c.replace('(na)','') for c in columns]
-                search_results = data              
-                search_results.columns = columns
+                data1=cur.fetchall()
+                if 'MW' in keys and len(keys) == 1:
+                    data = pd.DataFrame(list(data1), columns=['ID','SMILES','MW'])
+                    columns = list(data.columns)
+                else:
+                    data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                    data = data[data.columns[-3:]]
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    search_results = data              
+                    search_results.columns = columns
                 for c in columns:
                     if '-' in c:
                         temp_col.append(c.split('-')[0])
@@ -635,8 +639,11 @@ def search_db(db):
                         else:
                             temp_met.append(c.split('-')[1])
                     else:
+                        if 'MW' in c:
+                            temp_met.append('pybel')
+                        else:
+                            temp_met.append('')
                         temp_col.append(c)
-                        temp_met.append('')
                 try:
                     smi_val = None
                     if 'smiles_search' in from_form:
@@ -664,7 +671,7 @@ def search_db(db):
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
                 kc = False
                 for i in keys:
-                    if '_id' in i:
+                    if '_id' in i or 'MW' in i: 
                         kc = True
                 if kc == False:
                     data=data[data.columns[:2]]
@@ -704,61 +711,63 @@ def search_db(db):
                 sql = sql[:-1]+' offset 50;'
             cur.execute(sql)
             data1=cur.fetchall() 
-            data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-            data = data[data.columns[-3:]]
+            if 'property' not in sql and 'MW' in sql:
+                data = pd.DataFrame(list(data1), columns=['ID','SMILES','MW'])
+                columns = list(data.columns)
+            else:
+                data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                data = data[data.columns[-3:]]
+                if len(data)>0:
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                else:       
+                    n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
+                    columns=''
             temp_col=[]
             temp_met=[]
-            if len(data)>0:
-                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                data = data.reset_index()
-                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                columns=['ID','SMILES']
-                for i in data.columns[1:-2]:
-                    columns.append(i)
-                data=data[columns]
-                columns=[c.replace('(NA/NA)','') for c in columns]
-                columns=[c.replace('(na/na)','') for c in columns]
-                columns=[c.replace('(NA)','') for c in columns]
-                columns=[c.replace('(na)','') for c in columns]
-
-                for c in columns:
-                    if '-' in c:
-                        temp_col.append(c.split('-')[0])
-                        if len(c.split('-'))>2:
-                            temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
-                        else:
-                            temp_met.append(c.split('-')[1])
+            for c in columns:
+                if '-' in c:
+                    temp_col.append(c.split('-')[0])
+                    if len(c.split('-'))>2:
+                        temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
                     else:
-                        temp_col.append(c)
+                        temp_met.append(c.split('-')[1])
+                else:
+                    temp_col.append(c)
+                    if 'MW' in c:
+                        temp_met.append('pybel')
+                    else:
                         temp_met.append('')
-                try:
-                    smi_val = None
-                    if 'smiles_search' in from_form:
-                        smarts = pybel.Smarts(from_form['smiles'][0])
-                        smi_val = smarts
-                        for i in range(len(data)):
-                            mol = pybel.readstring("smi",data.loc[i]['SMILES'])
-                            smarts.obsmarts.Match(mol.OBMol)
-                            if len(smarts.findall(mol))==0:
-                                data.drop(i,0,inplace=True)
-                    search_results=data
-                    search_results.columns=columns
-                    if len(data)==0:
-                        n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
-                    else:
-                        n_res=counts + n_res_done            
-                except:
-                    n_res='Invalid Smarts entered'
-                    data=pd.DataFrame()
-            else:
-                # if min_max_err==True:
-                #     n_res = 'Min value entered is > Max value entered for one of the fields above.' 
-                #     columns=''
-                # else:               
-                n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
-                columns=''
+            try:
+                smi_val = None
+                if 'smiles_search' in from_form:
+                    smarts = pybel.Smarts(from_form['smiles'][0])
+                    smi_val = smarts
+                    for i in range(len(data)):
+                        mol = pybel.readstring("smi",data.loc[i]['SMILES'])
+                        smarts.obsmarts.Match(mol.OBMol)
+                        if len(smarts.findall(mol))==0:
+                            data.drop(i,0,inplace=True)
+                search_results=data
+                search_results.columns=columns
+                if len(data)==0:
+                    n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                else:
+                    n_res=counts + n_res_done            
+            except:
+                n_res='Invalid Smarts entered'
+                data=pd.DataFrame()
             desc=['','']
             columns =[]
             if counts < 50: 
@@ -773,10 +782,10 @@ def search_db(db):
                     columns.append((temp_col[i],temp_met[i]))
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
-            if 'MW' in sql and 'value.property_id=' not in sql:
-                columns = columns[:2]
-                data = data[data.columns[:2]]
-                desc = ['','']
+            # if 'MW' in sql and 'value.property_id=' not in sql:
+            #     columns = columns[:2]
+            #     data = data[data.columns[:2]]
+            #     desc = ['','']
             
             if 'order by' in sql:
                 if 'DESC' in sql:        
@@ -808,58 +817,66 @@ def search_db(db):
                 noprev = True
                 nonext = False
             cur.execute(sql)
-            data1=cur.fetchall() 
-            data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-            data = data[data.columns[-3:]]
+            data1=cur.fetchall()
+            if 'property' not in sql and 'MW' in sql:
+                data = pd.DataFrame(list(data1), columns=['ID','SMILES','MW'])
+                columns = list(data.columns)
+            else:
+                data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                data = data[data.columns[-3:]]
+                if len(data)>0:
+                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                    data = data.reset_index()
+                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                    columns=['ID','SMILES']
+                    for i in data.columns[1:-2]:
+                        columns.append(i)
+                    data=data[columns]
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                else:
+                    n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
+                    columns=''
             temp_col=[]
             temp_met=[]
-            if len(data)>0:
-                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                data = data.reset_index()
-                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                columns=['ID','SMILES']
-                for i in data.columns[1:-2]:
-                    columns.append(i)
-                data=data[columns]
-                columns=[c.replace('(NA/NA)','') for c in columns]
-                columns=[c.replace('(na/na)','') for c in columns]
-                columns=[c.replace('(NA)','') for c in columns]
-                columns=[c.replace('(na)','') for c in columns]
 
-                for c in columns:
-                    if '-' in c:
-                        temp_col.append(c.split('-')[0])
-                        if len(c.split('-'))>2:
-                            temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
-                        else:
-                            temp_met.append(c.split('-')[1])
+            for c in columns:
+                if '-' in c:
+                    temp_col.append(c.split('-')[0])
+                    if len(c.split('-'))>2:
+                        temp_met.append(c.split('-')[1]+'-'+c.split('-')[2])
                     else:
-                        temp_col.append(c)
+                        temp_met.append(c.split('-')[1])
+                else:
+                    temp_col.append(c)
+                    if 'MW' in c:
+                        temp_met.append('pybel')
+                    else:
                         temp_met.append('')
-                try:
-                    smi_val = None
-                    if 'smiles_search' in from_form:
-                        smarts = pybel.Smarts(from_form['smiles'][0])
-                        smi_val = smarts
-                        for i in range(len(data)):
-                            mol = pybel.readstring("smi",data.loc[i]['SMILES'])
-                            smarts.obsmarts.Match(mol.OBMol)
-                            if len(smarts.findall(mol))==0:
-                                data.drop(i,0,inplace=True)
-                    search_results=data
-                    search_results.columns=columns
-                    if len(data)==0:
-                        n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
-                    else:
-                        n_res=counts + n_res_done            
-                except:
-                    n_res='Invalid Smarts entered'
-                    data=pd.DataFrame()
-            else:
-                n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
-                columns=''
+            try:
+                smi_val = None
+                if 'smiles_search' in from_form:
+                    smarts = pybel.Smarts(from_form['smiles'][0])
+                    smi_val = smarts
+                    for i in range(len(data)):
+                        mol = pybel.readstring("smi",data.loc[i]['SMILES'])
+                        smarts.obsmarts.Match(mol.OBMol)
+                        if len(smarts.findall(mol))==0:
+                            data.drop(i,0,inplace=True)
+                search_results=data
+                search_results.columns=columns
+                if len(data)==0:
+                    n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                else:
+                    n_res=counts + n_res_done            
+            except:
+                n_res='Invalid Smarts entered'
+                data=pd.DataFrame()
+
             desc=['','']
             columns =[]
             fin = n_res_done + 50       
@@ -869,10 +886,6 @@ def search_db(db):
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
             
-            if 'MW' in sql and 'value.property_id=' not in sql:
-                columns = columns[:2]
-                data = data[data.columns[:2]]
-                desc = ['','']
             if 'order by' in sql:
                 if 'DESC' in sql:        
                     data=data.sort_values(by=data.columns[-1],ascending=False)
@@ -889,145 +902,190 @@ def search_db(db):
             from_form = from_form.to_dict(flat=False)
             desc=['','']
             ## re-executing query to get all results
-            cur.execute(sql[:sql.rindex(')')+1]+';')
-            all_results = cur.fetchall()
-            data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-            data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-            data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-            data = data[data.columns[-3:]]
-            data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-            data = data.reset_index()
-            data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)  
-            columns=['ID','SMILES']          
-            for i in data.columns[1:-2]:
-                    columns.append(i)
-            data=data[columns]
-            columns=[c.replace('(NA/NA)','') for c in columns]
-            columns=[c.replace('(na/na)','') for c in columns]
-            columns=[c.replace('(NA)','') for c in columns]
-            columns=[c.replace('(na)','') for c in columns]
-            data.columns = columns
+
+            if 'MW' in sql and 'property' not in sql:
+                cur.execute(sql[:sql.rindex('limit')]+';')
+                all_results = cur.fetchall()
+                data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
+                columns = list(data.columns)
+            else:
+                cur.execute(sql[:sql.rindex(')')+1]+';')
+                all_results = cur.fetchall()
+                data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                data = data[data.columns[-3:]]
+                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                data = data.reset_index()
+                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)  
+                columns=['ID','SMILES']          
+                for i in data.columns[1:-2]:
+                        columns.append(i)
+                data=data[columns]
+                columns=[c.replace('(NA/NA)','') for c in columns]
+                columns=[c.replace('(na/na)','') for c in columns]
+                columns=[c.replace('(NA)','') for c in columns]
+                columns=[c.replace('(na)','') for c in columns]
+                data.columns = columns
+            
             data.to_csv('results.csv',index=None)
             ## results that go to the html are still limited to 50
-            for i in search_results.columns[2:]:
-                desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
+            for i in data.columns[2:]:
+                desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
             # search_results.to_csv('results.csv',index=None)
             msg='Results have been downloaded as results.csv'
-            data = tuple(search_results.itertuples(index=False,name=None))
             columns=[]
-            for i in range(len(search_results.columns)):
-                if i<2:
-                    columns.append((search_results.columns[i],''))
-                else:
-                    if len(search_results.columns[i].split('-')) > 2:
-                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]+'-'+search_results.columns[i].split('-')[2]))
+            for i in data.columns:
+                if '-' not in i:
+                    if 'MW' in i:
+                        columns.append((i,'pybel'))
                     else:
-                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))            
+                        columns.append((i,''))
+                else:
+                    if len(i.split('-')) > 2:
+                        columns.append((i.split('-')[0],i.split('-')[1]+'-'+i.split('-')[2]))
+                    else:
+                        columns.append((i.split('-')[0],i.split('-')[1])) 
+            data = tuple(data.itertuples(index=False,name=None))
             return render_template('search_db.html',data = data,ini=ini, fin=fin, properties=properties,columns=columns,methods=methods,msg=msg,n_res=n_res,functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download,all_dbs=all_dbs,noprev=noprev,nonext=nonext,title=db,desc=desc)
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
+            print(from_form)
             if 'ascending' in from_form['select_order']:
                 if 'order by' not in sql:
-                    sql = sql[:sql.rindex(')')+1]+ ' order by value.num_value ' + sql[sql.rindex(')')+1:]
-                    cur.execute(sql)
-                    all_results=cur.fetchall() 
-                    data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                    data = data[data.columns[-3:]]
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
+                    if 'property' not in sql and 'MW' in sql:
+                        sql = sql[:sql.rindex('limit')] + ' order by molecule.MW ' +sql[sql.rindex('limit'):]
+                        cur.execute(sql)
+                        all_results = cur.fetchall()
+                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
+                        columns = data.columns
+                    else:
+                        sql = sql[:sql.rindex(')')+1]+ ' order by Value.num_value ' + sql[sql.rindex(')')+1:]
+                        cur.execute(sql)
+                        all_results=cur.fetchall() 
+                        data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                        data = data[data.columns[-3:]]
+                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                        data = data.reset_index()
+                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                        columns=['ID','SMILES']
+                        for i in data.columns[1:-2]:
+                            columns.append(i)
+                        data=data[columns]
+                        columns=[c.replace('(NA/NA)','') for c in columns]
+                        columns=[c.replace('(na/na)','') for c in columns]
+                        columns=[c.replace('(NA)','') for c in columns]
+                        columns=[c.replace('(na)','') for c in columns]
                     search_results = data              
                     search_results.columns = columns
                 elif 'order by' in sql and 'DESC' in sql:
-                    sql = sql[:sql.rindex('value')+5] + ' ' + sql[sql.rindex('value')+11:]
-                    cur.execute(sql)
-                    all_results=cur.fetchall() 
-                    data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                    data = data[data.columns[-3:]]
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
+                    if 'property' not in sql and 'MW' in sql:
+                        sql = sql[:sql.rindex('DESC')] + sql[sql.rindex('DESC')+5:]
+                        cur.execute(sql)
+                        all_results = cur.fetchall()
+                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
+                        columns = data.columns
+                    else:
+                        sql = sql[:sql.rindex('value')+5] + ' ' + sql[sql.rindex('value')+11:]
+                        cur.execute(sql)
+                        all_results=cur.fetchall() 
+                        data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                        data = data[data.columns[-3:]]
+                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                        data = data.reset_index()
+                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                        columns=['ID','SMILES']
+                        for i in data.columns[1:-2]:
+                            columns.append(i)
+                        data=data[columns]
+                        columns=[c.replace('(NA/NA)','') for c in columns]
+                        columns=[c.replace('(na/na)','') for c in columns]
+                        columns=[c.replace('(NA)','') for c in columns]
+                        columns=[c.replace('(na)','') for c in columns]
                     search_results = data              
                     search_results.columns = columns
-                search_results=search_results.sort_values(by=from_form['property_orderby'])
+                if 'MW' not in sql and 'property' in sql:
+                    search_results=search_results.sort_values(by=from_form['property_orderby'][0])
             else:
                 if 'order by' in sql and 'DESC' not in sql:
-                    sql = sql[:sql.rindex('value')+5] + ' DESC' + sql[sql.rindex('value')+5:]
-                    cur.execute(sql)
-                    data1=cur.fetchall() 
-                    data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                    data = data[data.columns[-3:]]
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
+                    if 'property' not in sql and 'MW' in sql:
+                        sql = sql[:sql.rindex('MW')+3] + 'DESC ' + sql[sql.rindex('MW')+3:]
+                        cur.execute(sql)
+                        all_results = cur.fetchall()
+                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
+                        columns = data.columns     
+                    else:               
+                        sql = sql[:sql.rindex('value')+5] + ' DESC' + sql[sql.rindex('value')+5:]
+                        cur.execute(sql)
+                        data1=cur.fetchall() 
+                        data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                        data = data[data.columns[-3:]]
+                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                        data = data.reset_index()
+                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                        columns=['ID','SMILES']
+                        for i in data.columns[1:-2]:
+                            columns.append(i)
+                        data=data[columns]
+                        columns=[c.replace('(NA/NA)','') for c in columns]
+                        columns=[c.replace('(na/na)','') for c in columns]
+                        columns=[c.replace('(NA)','') for c in columns]
+                        columns=[c.replace('(na)','') for c in columns]
                     search_results = data              
                     search_results.columns = columns
                 elif 'order by' not in sql:
-                    sql = sql[:sql.rindex(')')+1]+ ' order by value.num_value DESC ' + sql[sql.rindex(')')+1:]
-                    cur.execute(sql)
-                    data1=cur.fetchall() 
-                    data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                    data = data[data.columns[-3:]]
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
+                    if 'property' not in sql and 'MW' in sql:
+                        sql = sql[:sql.rindex('limit')] + ' order by molecule.MW DESC ' +sql[sql.rindex('limit'):]
+                        cur.execute(sql)
+                        all_results = cur.fetchall()
+                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
+                        columns = data.columns
+                    else:
+                        sql = sql[:sql.rindex(')')+1]+ ' order by value.num_value DESC ' + sql[sql.rindex(')')+1:]
+                        cur.execute(sql)
+                        data1=cur.fetchall() 
+                        data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+                        data = data[data.columns[-3:]]
+                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+                        data = data.reset_index()
+                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+                        columns=['ID','SMILES']
+                        for i in data.columns[1:-2]:
+                            columns.append(i)
+                        data=data[columns]
+                        columns=[c.replace('(NA/NA)','') for c in columns]
+                        columns=[c.replace('(na/na)','') for c in columns]
+                        columns=[c.replace('(NA)','') for c in columns]
+                        columns=[c.replace('(na)','') for c in columns]
                     search_results = data              
                     search_results.columns = columns
-                search_results=search_results.sort_values(by=from_form['property_orderby'],ascending=False)    
+                if 'MW' not in sql and 'property' in sql:
+                    search_results=search_results.sort_values(by=from_form['property_orderby'],ascending=False)  
             desc=['','']
             data = tuple(search_results.itertuples(index=False,name=None))
             for i in search_results.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
             columns=[]
-            for i in range(len(search_results.columns)):
-                if i<2:
-                    columns.append((search_results.columns[i],''))
-                else:
-                    if len(search_results.columns[i].split('-')) > 2:
-                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]+'-'+search_results.columns[i].split('-')[2]))
+            for i in search_results.columns:
+                if '-' not in i:
+                    if 'MW' in i:
+                        columns.append((i,'pybel'))
                     else:
-                        columns.append((search_results.columns[i].split('-')[0],search_results.columns[i].split('-')[1]))
+                        columns.append((i,''))
+                else:
+                    if len(i.split('-')) > 2:
+                        columns.append((i.split('-')[0],i.split('-')[1]+'-'+i.split('-')[2]))
+                    else:
+                        columns.append((i.split('-')[0],i.split('-')[1]))
             return render_template('search_db.html',data = data,properties=properties,ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         else:
             return render_template('search_db.html',properties=properties,methods=methods,is_download=is_download,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)

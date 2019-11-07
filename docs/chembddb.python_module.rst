@@ -1,5 +1,5 @@
-ChemBDDB: Python API
-====================
+ChemBDDB: Python Module
+=======================
 
 .. automodule:: chembddb.chembddb
     :members:

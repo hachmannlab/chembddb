@@ -127,21 +127,37 @@
 
 {% if data %}
 <div class="row">
+    {% if not to_order %}
         <div class='col-md-5'>
         <form name='orderby' action="" method="post">
-                <select id='property_ordering' name='property_orderby'>
+                <select id='property_ordering' name='property_orderby' disabled>
                     {% for cols in columns[2:] %}
                     <option value="{{cols[0]}}-{{cols[1]}}" size=100>{{cols[0]}}-{{cols[1]}}</option>
                     {% endfor %}
                 </select>
-                <select id='order' name='select_order'>
+                <select id='order' name='select_order' disabled>
                     <option value='ascending' size=100>ascending</option>
                     <option value='descending' size=100>descending</option>
                 </select>
-                <button type="submit" name='orderby_property' class='btn btn-primary btn-md' style="background-color:#005bbb;color:#ffffff" >re-order</button>
+                <button type="submit" name='orderby_property' class='btn btn-primary btn-md' style="background-color:#005bbb;color:#ffffff" disabled>re-order</button>
             </form>
         </div>
-        
+        {% else %}
+        <div class='col-md-5'>
+                <form name='orderby' action="" method="post">
+                        <select id='property_ordering' name='property_orderby'>
+                            {% for cols in columns[2:] %}
+                            <option value="{{cols[0]}}-{{cols[1]}}" size=100>{{cols[0]}}-{{cols[1]}}</option>
+                            {% endfor %}
+                        </select>
+                        <select id='order' name='select_order'>
+                            <option value='ascending' size=100>ascending</option>
+                            <option value='descending' size=100>descending</option>
+                        </select>
+                        <button type="submit" name='orderby_property' class='btn btn-primary btn-md' style="background-color:#005bbb;color:#ffffff" >re-order</button>
+                    </form>
+                </div>
+    {% endif %}
         <div class='col-md-4 col-md-offset-3'>
         <form name='csv' action="" method="post">
             <button type="submit" name="download_csv" class="btn btn-primary btn-md" style="background-color:#005bbb;color:#ffffff;margin-left: 60px;" >Download</button>     

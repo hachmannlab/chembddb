@@ -18,6 +18,49 @@ app = Flask(__name__)
 upload_directory=os.getcwd()
 app.config['UPLOAD FOLDER']=upload_directory
 
+def post_process(sql, from_db):
+    abc = 0
+    """
+    Helper function to post process the results from the database
+
+    Parameters
+    ----------
+    sql: str
+        sql query that was created by the search function
+    from_db: tuple of tuples
+        results from the database
+
+    Returns
+    -------
+    data: pandas dataframe
+        dataframe containing the processed results ready to be displayed
+    columns: list of str
+        list of formatted and cleaned column names
+    """
+    if 'MW' in sql and 'property' not in sql:
+        data = pd.DataFrame(list(from_db), columns=['ID','SMILES','MW'])
+        columns = list(data.columns)
+    elif 'MW' not in sql and 'property' not in sql:
+        data = pd.DataFrame(list(from_db),columns = ['ID','SMILES'])
+        columns = list(data.columns)
+    else:
+        data = pd.DataFrame(list(from_db), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
+        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
+        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
+        data = data[data.columns[-3:]]
+        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
+        data = data.reset_index()
+        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
+        columns=['ID','SMILES']
+        for i in data.columns[1:-2]:
+            columns.append(i)
+        data=data[columns]
+        columns=[c.replace('(NA/NA)','') for c in columns]
+        columns=[c.replace('(na/na)','') for c in columns]
+        columns=[c.replace('(NA)','') for c in columns]
+        columns=[c.replace('(na)','') for c in columns]
+    return data, columns
+
 @app.route('/')
 def begin():
     return redirect(url_for('connect'))
@@ -495,6 +538,7 @@ def search_db(db):
         cur.execute("Select * from forcefield")
         forcefields=cur.fetchall()
         methods=[]
+        # search_results useful only in case of smiles_search because the same results are used ... single db call
         global search_results
         global sql
         global ini
@@ -502,11 +546,10 @@ def search_db(db):
         global n_res
         global noprev
         global nonext
-        is_download=True
-        to_order=True
         for i in results:
             methods.append(i[1])
         if request.method == 'POST' and 'search-query' in request.form:
+            # This section is to create the query based on the options provided by the user
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             keys=[i for i in from_form if '_id' in i]
@@ -553,12 +596,12 @@ def search_db(db):
                 if len(keys)!=0:
                     sql=sql+" and molecule.MW > {} and molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
                 else:
-                    sql=sql+" molecule.MW > {} and molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
+                    sql="select id,SMILES_str,MW from Molecule where Molecule.MW > {} and Molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
                     keys.append('MW')
             if 'smiles_search' in from_form:
                 if len(keys)==0:
-                    sql=sql[:-6]
-            
+                    sql = 'select id, SMILES_str from Molecule'
+
             if 'method' in from_form:
                 met_id=0
                 for m in results:
@@ -587,13 +630,18 @@ def search_db(db):
                 else:
                     sql=sql+' and Value.forcefield_id={}'.format(from_form['forcefield'][0])
             
-            counts_q = 'select count(*) '+sql[sql.find('from'):] +';'
-            sql = sql + 'limit 50'
-            cur.execute(counts_q)
             global counts
-            counts = cur.fetchall()
-            counts = counts[0][0]
+            counts_q = 'select count(*) '+sql[sql.find('from'):] +';'
+            if 'smiles_search' not in from_form:
+                sql = sql + 'limit 50'
+                cur.execute(counts_q)
+                counts = cur.fetchall()
+                counts = counts[0][0]
+            else:
+                # because smiles_search will get all results from the db because substructure matching is required
+                counts = -1
             sql=sql+';'
+            # query creation ends here
             temp_col=[]              
             temp_met=[]
             if counts == 0:
@@ -604,33 +652,15 @@ def search_db(db):
                     n_res = 'Number of results='+ str(counts)+'. No such candidates exist in your database'
                     columns=''
                 if 'MW' in from_form:
-                    return render_template('search_db.html',MW_from=MW_from, MW_to=MW_to,properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
+                    return render_template('search_db.html',MW_from=MW_from, MW_to=MW_to,properties=properties,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
                 else:
-                    return render_template('search_db.html',properties=properties,columns=columns,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
+                    return render_template('search_db.html',properties=properties,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db)
             else:
+                # executing the query
                 cur.execute(sql)
                 data1=cur.fetchall()
-                if 'MW' in keys and len(keys) == 1:
-                    data = pd.DataFrame(list(data1), columns=['ID','SMILES','MW'])
-                    columns = list(data.columns)
-                else:
-                    data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                    data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                    data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                    data = data[data.columns[-3:]]
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
-                    search_results = data              
-                    search_results.columns = columns
+                data, columns = post_process(sql, data1)
+                # the following section is just to format the column headers that appear on the html page
                 for c in columns:
                     if '-' in c:
                         temp_col.append(c.split('-')[0])
@@ -644,6 +674,7 @@ def search_db(db):
                         else:
                             temp_met.append('')
                         temp_col.append(c)
+                # substructure matching using pybel
                 try:
                     smi_val = None
                     if 'smiles_search' in from_form:
@@ -658,28 +689,38 @@ def search_db(db):
                             n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
                         else:
                             n_res=len(data)
+                            counts = n_res
+                        if n_res>50:
+                            search_results = data
+                            search_results.columns = data.columns
+                            data = data[:51]
                     else:
                         n_res=counts                       
                 except:
                     n_res='Invalid Smarts entered'
                     data=pd.DataFrame()
+                
                 desc=['','']
                 columns =[]
+                # creating tuple of tuples for column headers (required for html page)
                 for i in range(len(temp_met)):
                     columns.append((temp_col[i],temp_met[i]))
+                # calculating statistics for each page
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
-                kc = False
-                for i in keys:
-                    if '_id' in i or 'MW' in i: 
-                        kc = True
-                if kc == False:
-                    data=data[data.columns[:2]]
-                    columns=columns[:2]
-                    desc = desc[:2]
+                # kc = False
+                # for i in keys:
+                #     if '_id' in i or 'MW' in i: 
+                #         kc = True
+                # if kc == False:
+                #     data=data[data.columns[:2]]
+                #     columns=columns[:2]
+                #     desc = desc[:2]
                 data = tuple(data.itertuples(index=False,name=None))
-                is_download=False
-                to_order=False
+                if len(columns) == 2:
+                    to_order = False
+                else:
+                    to_order = True
                 noprev=True
                 db = db.replace('_chembddb','')
                 ini=0
@@ -690,50 +731,35 @@ def search_db(db):
                     nonext=False
                     fin = 50
                 if 'MW' in from_form:
-                    return render_template('search_db.html',ini=ini,fin=fin, MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
+                    return render_template('search_db.html',ini=ini,fin=fin, MW_from=MW_from, MW_to=MW_to,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,to_order = to_order,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
                 else:
-                    return render_template('search_db.html',ini=0,fin=fin,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
+                    return render_template('search_db.html',ini=0,fin=fin,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,to_order=to_order, all_dbs=all_dbs,title=db,desc=desc,noprev=noprev,nonext=nonext)
         elif 'next-50' in request.form:
             nonext=False
-            counts = counts - 50
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             n_res_done = 0
             if sql[-9:] == 'offset 0;':
                 sql = sql[:-9] + ';'
             elif ' offset' in sql:
-                # checking the offset in the previous sql query, this number tells us how many results have been displayed already
+                # checking the offset in the previous sql query, n_res_done tells us how many results have been displayed already
                 n_res_done = int(sql[-4:-1])
                 sql = sql[:-4] + ' '+str(n_res_done + 50) +';'
                 n_res_done = n_res_done + 50
             else:
                 n_res_done = 50
                 sql = sql[:-1]+' offset 50;'
-            cur.execute(sql)
-            data1=cur.fetchall() 
-            if 'property' not in sql and 'MW' in sql:
-                data = pd.DataFrame(list(data1), columns=['ID','SMILES','MW'])
+            print('next: ',n_res_done)
+            if 'property' not in sql and 'MW' not in sql:
+                data = search_results[n_res_done:n_res_done+51]
                 columns = list(data.columns)
-            else:
-                data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                data = data[data.columns[-3:]]
-                if len(data)>0:
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
-                else:       
-                    n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
-                    columns=''
+                to_order = False
+            else:   
+                to_order = True         
+                cur.execute(sql)
+                data1=cur.fetchall() 
+                data, columns = post_process(sql, data1)
+
             temp_col=[]
             temp_met=[]
             for c in columns:
@@ -749,29 +775,11 @@ def search_db(db):
                         temp_met.append('pybel')
                     else:
                         temp_met.append('')
-            try:
-                smi_val = None
-                if 'smiles_search' in from_form:
-                    smarts = pybel.Smarts(from_form['smiles'][0])
-                    smi_val = smarts
-                    for i in range(len(data)):
-                        mol = pybel.readstring("smi",data.loc[i]['SMILES'])
-                        smarts.obsmarts.Match(mol.OBMol)
-                        if len(smarts.findall(mol))==0:
-                            data.drop(i,0,inplace=True)
-                search_results=data
-                search_results.columns=columns
-                if len(data)==0:
-                    n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
-                else:
-                    n_res=counts + n_res_done            
-            except:
-                n_res='Invalid Smarts entered'
-                data=pd.DataFrame()
+
             desc=['','']
             columns =[]
-            if counts < 50: 
-                fin = n_res_done + counts
+            if (counts - n_res_done) < 50: 
+                fin = counts
                 nonext = True
             else:
                 nonext = False
@@ -795,52 +803,34 @@ def search_db(db):
             data = tuple(data.itertuples(index=False,name=None))
             ini = n_res_done
             if 'MW' in sql and 'value.property_id=' not in sql:
-                return render_template('search_db.html',ini=ini,fin=fin, noprev=False,nonext=nonext,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+                return render_template('search_db.html',ini=ini,fin=fin, to_order=to_order,noprev=False,nonext=nonext,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
             else:
-                return render_template('search_db.html',ini=ini,fin=fin,nonext=nonext,noprev=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+                return render_template('search_db.html',ini=ini,fin=fin,to_order=to_order,nonext=nonext,noprev=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
         elif 'prev-50' in request.form:
             noprev=False
-            counts = counts + 50
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             n_res_done = 0
+            print(sql)
             if ' offset' in sql:
                 # checking the offset in the previous sql query, this number tells us how many results have been displayed already
-                n_res_done = int(sql[-4:-1])
-                sql = sql[:-4] + ' '+str(n_res_done - 50) +';'
-                n_res_done = n_res_done - 50
+                n_res_done = int(sql[-4:-1]) - 50
+                sql = sql[:-4] + ' '+str(n_res_done) +';'
                 noprev = False
-            else:
-                noprev = True
-
+            print('prev: ',n_res_done)
             if n_res_done ==0:
                 noprev = True
                 nonext = False
-            cur.execute(sql)
-            data1=cur.fetchall()
-            if 'property' not in sql and 'MW' in sql:
-                data = pd.DataFrame(list(data1), columns=['ID','SMILES','MW'])
+            
+            if 'property' not in sql and 'MW' not in sql:
+                data = search_results[n_res_done:n_res_done+51]
                 columns = list(data.columns)
+                to_order = False
             else:
-                data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                data = data[data.columns[-3:]]
-                if len(data)>0:
-                    data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                    data = data.reset_index()
-                    data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                    columns=['ID','SMILES']
-                    for i in data.columns[1:-2]:
-                        columns.append(i)
-                    data=data[columns]
-                    columns=[c.replace('(NA/NA)','') for c in columns]
-                    columns=[c.replace('(na/na)','') for c in columns]
-                    columns=[c.replace('(NA)','') for c in columns]
-                    columns=[c.replace('(na)','') for c in columns]
-                else:
-                    n_res = 'Number of results='+ str(len(data))+'. No such candidates exist in your database'
-                    columns=''
+                cur.execute(sql)
+                data1=cur.fetchall()
+                data, columns = post_process(sql, data1)
+                to_order = True
             temp_col=[]
             temp_met=[]
 
@@ -857,29 +847,10 @@ def search_db(db):
                         temp_met.append('pybel')
                     else:
                         temp_met.append('')
-            try:
-                smi_val = None
-                if 'smiles_search' in from_form:
-                    smarts = pybel.Smarts(from_form['smiles'][0])
-                    smi_val = smarts
-                    for i in range(len(data)):
-                        mol = pybel.readstring("smi",data.loc[i]['SMILES'])
-                        smarts.obsmarts.Match(mol.OBMol)
-                        if len(smarts.findall(mol))==0:
-                            data.drop(i,0,inplace=True)
-                search_results=data
-                search_results.columns=columns
-                if len(data)==0:
-                    n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
-                else:
-                    n_res=counts + n_res_done            
-            except:
-                n_res='Invalid Smarts entered'
-                data=pd.DataFrame()
 
             desc=['','']
             columns =[]
-            fin = n_res_done + 50       
+            fin = n_res_done + 50     
             if temp_met!=[]:
                 for i in range(len(temp_met)):
                     columns.append((temp_col[i],temp_met[i]))
@@ -894,40 +865,29 @@ def search_db(db):
             data = tuple(data.itertuples(index=False,name=None))
             ini = n_res_done
             if 'MW' in sql and 'value.property_id=' not in sql:
-                return render_template('search_db.html',ini=n_res_done,fin=fin,noprev = noprev, nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+                return render_template('search_db.html',ini=n_res_done,fin=fin,to_order=to_order, noprev = noprev, nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
             else:
-                return render_template('search_db.html',ini=n_res_done,fin=fin, noprev = noprev,nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,is_download=is_download,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
+                return render_template('search_db.html',ini=n_res_done,fin=fin, to_order=to_order, noprev = noprev,nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         elif 'download_csv' in request.form:
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             desc=['','']
             ## re-executing query to get all results
 
-            if 'MW' in sql and 'property' not in sql:
-                cur.execute(sql[:sql.rindex('limit')]+';')
-                all_results = cur.fetchall()
-                data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
-                columns = list(data.columns)
+            if 'MW' not in sql and 'property' not in sql:
+                data = search_results
+                columns = search_results.columns
+                to_order = False
             else:
-                cur.execute(sql[:sql.rindex(')')+1]+';')
+                if 'MW' in sql and 'property' not in sql:
+                    sql = sql[:sql.rindex('limit')]+';'
+                else:
+                    sql = sql[:sql.rindex(')')+1]+';'                   
+                cur.execute(sql)        
                 all_results = cur.fetchall()
-                data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                data = data[data.columns[-3:]]
-                data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                data = data.reset_index()
-                data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)  
-                columns=['ID','SMILES']          
-                for i in data.columns[1:-2]:
-                        columns.append(i)
-                data=data[columns]
-                columns=[c.replace('(NA/NA)','') for c in columns]
-                columns=[c.replace('(na/na)','') for c in columns]
-                columns=[c.replace('(NA)','') for c in columns]
-                columns=[c.replace('(na)','') for c in columns]
-                data.columns = columns
-            
+                data, columns = post_process(sql, all_results)
+                to_order = True
+
             data.to_csv('results.csv',index=None)
             ## results that go to the html are still limited to 50
             for i in data.columns[2:]:
@@ -947,38 +907,21 @@ def search_db(db):
                     else:
                         columns.append((i.split('-')[0],i.split('-')[1])) 
             data = tuple(data.itertuples(index=False,name=None))
-            return render_template('search_db.html',data = data,ini=ini, fin=fin, properties=properties,columns=columns,methods=methods,msg=msg,n_res=n_res,functionals=functionals,basis=basis_sets,forcefields=forcefields,is_download=is_download,all_dbs=all_dbs,noprev=noprev,nonext=nonext,title=db,desc=desc)
+            return render_template('search_db.html',data = data,ini=ini, fin=fin, to_order=to_order, properties=properties,columns=columns,methods=methods,msg=msg,n_res=n_res,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,noprev=noprev,nonext=nonext,title=db,desc=desc)
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
-            print(from_form)
             if 'ascending' in from_form['select_order']:
                 if 'order by' not in sql:
                     if 'property' not in sql and 'MW' in sql:
                         sql = sql[:sql.rindex('limit')] + ' order by molecule.MW ' +sql[sql.rindex('limit'):]
-                        cur.execute(sql)
-                        all_results = cur.fetchall()
-                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
-                        columns = data.columns
                     else:
                         sql = sql[:sql.rindex(')')+1]+ ' order by Value.num_value ' + sql[sql.rindex(')')+1:]
-                        cur.execute(sql)
-                        all_results=cur.fetchall() 
-                        data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                        data = data[data.columns[-3:]]
-                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                        data = data.reset_index()
-                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                        columns=['ID','SMILES']
-                        for i in data.columns[1:-2]:
-                            columns.append(i)
-                        data=data[columns]
-                        columns=[c.replace('(NA/NA)','') for c in columns]
-                        columns=[c.replace('(na/na)','') for c in columns]
-                        columns=[c.replace('(NA)','') for c in columns]
-                        columns=[c.replace('(na)','') for c in columns]
+
+                    cur.execute(sql)
+                    all_results=cur.fetchall() 
+                    data, columns = post_process(sql, all_results)
+
                     search_results = data              
                     search_results.columns = columns
                 elif 'order by' in sql and 'DESC' in sql:
@@ -1086,9 +1029,9 @@ def search_db(db):
                         columns.append((i.split('-')[0],i.split('-')[1]+'-'+i.split('-')[2]))
                     else:
                         columns.append((i.split('-')[0],i.split('-')[1]))
-            return render_template('search_db.html',data = data,properties=properties,ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
+            return render_template('search_db.html',data = data,properties=properties,to_order = True, ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
         else:
-            return render_template('search_db.html',properties=properties,methods=methods,is_download=is_download,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)
+            return render_template('search_db.html',properties=properties,methods=methods,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)
 
 @app.route('/molecule-<dbid>',methods=['GET','POST'])
 def molecule(dbid):

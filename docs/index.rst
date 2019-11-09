@@ -40,12 +40,6 @@ Installing MySQL is a prerequisite for running ChemBDDB. General instructions:
                 conda install -c openbabel openbabel
                 pip install chembddb
 
-        - You can test the installation with:
-
-            .. code:: bash
-
-                pytest -v
-
 Documentation:
 ++++++++++++++
 

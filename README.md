@@ -33,10 +33,6 @@ It is highly recommended that a virtual environment is used to run ChemBDDB. The
     conda install -c openbabel openbabel
     pip install chembddb
 
-You can test the installation with:
-
-    pytest -v
-
 ## Citation:
 Please cite the use of ChemBDDB as:
 

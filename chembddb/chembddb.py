@@ -318,7 +318,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(prop)
                         cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
-                # print('property table populated')
+
                 # populating the model table
                 cur.execute("SELECT Method_name from Model")
                 models = cur.fetchall()
@@ -329,7 +329,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(method)
                         cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
-                # print('method table populated')
+
                 # populating the functional table
                 ####testing####
                 cur.execute('show tables;')
@@ -344,7 +344,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(func)
                         cur.execute("INSERT INTO Functional(name) VALUES(%s)",[func])
-                # print('functional table populated')
+
                 # populating the basis_set table
                 cur.execute("SELECT name FROM Basis_set")
                 basis_sets = cur.fetchall()
@@ -356,7 +356,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         entered_list.append(basis)
                         cur.execute("INSERT INTO Basis_set(name) VALUES(%s)",[basis])
 
-                # print('basis table populated')
+
                 # populating the forcefield table
                 cur.execute("SELECT name FROM Forcefield")
                 forcefields = cur.fetchall()
@@ -367,7 +367,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     else:
                         entered_list.append(basis)
                         cur.execute("INSERT INTO Forcefield(name) VALUES(%s)",[ff])
-                # print('ff table populated')
+
                 # populating the molecule table
                 cur.execute("SELECT SMILES_str,Molecule_identifier,MW from Molecule")
                 molecules = cur.fetchall()
@@ -418,7 +418,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 new_entries = tuple(tuple(x) for x in new_entries)
                 required_entries = list(set(new_entries) - set(molecules))
                 cur.executemany('INSERT INTO Molecule(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
-                # print('molecule table populated')
+
                 # populating the credit table
                 # todo: figure out how to deal with the credit/publication
                 # cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
@@ -489,7 +489,6 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         return 'Failed! Duplicate entries for all molecules exist.'
                 else:
                     cur.executemany('INSERT INTO Value(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
-                    # print('value table populated')
                     con.commit()
                     db=db.replace('_chembddb','')
                     db=db.replace('_',' ')
@@ -546,6 +545,9 @@ def search_db(db):
         global n_res
         global noprev
         global nonext
+        global keys
+        global multiprop
+        multiprop = False
         for i in results:
             methods.append(i[1])
         if request.method == 'POST' and 'search-query' in request.form:
@@ -632,14 +634,16 @@ def search_db(db):
             
             global counts
             counts_q = 'select count(*) '+sql[sql.find('from'):] +';'
-            if 'smiles_search' not in from_form:
+
+            # because smiles_search will get all results from the db because substructure matching is required
+            if ('property' not in sql and 'MW' not in sql) or len(keys)>1:
+                counts = -1
+            else:
                 sql = sql + 'limit 50'
                 cur.execute(counts_q)
                 counts = cur.fetchall()
                 counts = counts[0][0]
-            else:
-                # because smiles_search will get all results from the db because substructure matching is required
-                counts = -1
+
             sql=sql+';'
             # query creation ends here
             temp_col=[]              
@@ -694,8 +698,18 @@ def search_db(db):
                             search_results = data
                             search_results.columns = data.columns
                             data = data[:51]
+                    elif len(keys)>1:
+                        if len(data)==0:
+                            n_res='Number of results='+ str(len(data))+'\nNo such candidates exist in your database'
+                        else:
+                            n_res=len(data)
+                            counts = n_res
+                        if n_res>50:
+                            search_results = data
+                            search_results.columns = data.columns
+                            data = data[:51]
                     else:
-                        n_res=counts                       
+                        n_res = counts
                 except:
                     n_res='Invalid Smarts entered'
                     data=pd.DataFrame()
@@ -708,14 +722,6 @@ def search_db(db):
                 # calculating statistics for each page
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
-                # kc = False
-                # for i in keys:
-                #     if '_id' in i or 'MW' in i: 
-                #         kc = True
-                # if kc == False:
-                #     data=data[data.columns[:2]]
-                #     columns=columns[:2]
-                #     desc = desc[:2]
                 data = tuple(data.itertuples(index=False,name=None))
                 if len(columns) == 2:
                     to_order = False
@@ -739,27 +745,30 @@ def search_db(db):
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             n_res_done = 0
-            if sql[-9:] == 'offset 0;':
-                sql = sql[:-9] + ';'
-            elif ' offset' in sql:
+            if ' offset' in sql:
                 # checking the offset in the previous sql query, n_res_done tells us how many results have been displayed already
-                n_res_done = int(sql[-4:-1])
-                sql = sql[:-4] + ' '+str(n_res_done + 50) +';'
+                n_res_done = int(sql[sql.rfind('offset')+7:-1])
+                sql = sql[:sql.rfind('offset')+6] + ' '+str(n_res_done + 50) +';'
                 n_res_done = n_res_done + 50
             else:
                 n_res_done = 50
-                sql = sql[:-1]+' offset 50;'
-            print('next: ',n_res_done)
-            if 'property' not in sql and 'MW' not in sql:
+                sql = sql[:-1]+' offset '+str(n_res_done)+';'
+            if ('property' not in sql and 'MW' not in sql) or len(keys)>1:
                 data = search_results[n_res_done:n_res_done+51]
                 columns = list(data.columns)
-                to_order = False
+                if len(keys)==0:
+                    to_order = False
+                else:
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    to_order = True
             else:   
                 to_order = True         
                 cur.execute(sql)
                 data1=cur.fetchall() 
                 data, columns = post_process(sql, data1)
-
             temp_col=[]
             temp_met=[]
             for c in columns:
@@ -778,6 +787,7 @@ def search_db(db):
 
             desc=['','']
             columns =[]
+            ini = n_res_done
             if (counts - n_res_done) < 50: 
                 fin = counts
                 nonext = True
@@ -790,18 +800,12 @@ def search_db(db):
                     columns.append((temp_col[i],temp_met[i]))
                 for i in data.columns[2:]:
                     desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
-            # if 'MW' in sql and 'value.property_id=' not in sql:
-            #     columns = columns[:2]
-            #     data = data[data.columns[:2]]
-            #     desc = ['','']
-            
             if 'order by' in sql:
                 if 'DESC' in sql:        
                     data=data.sort_values(by=data.columns[-1],ascending=False)
                 else:
                     data=data.sort_values(by=data.columns[-1])
             data = tuple(data.itertuples(index=False,name=None))
-            ini = n_res_done
             if 'MW' in sql and 'value.property_id=' not in sql:
                 return render_template('search_db.html',ini=ini,fin=fin, to_order=to_order,noprev=False,nonext=nonext,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
             else:
@@ -811,21 +815,25 @@ def search_db(db):
             from_form = request.form
             from_form = from_form.to_dict(flat=False)
             n_res_done = 0
-            print(sql)
             if ' offset' in sql:
                 # checking the offset in the previous sql query, this number tells us how many results have been displayed already
-                n_res_done = int(sql[-4:-1]) - 50
-                sql = sql[:-4] + ' '+str(n_res_done) +';'
+                n_res_done = int(sql[sql.rfind('offset')+7:-1]) - 50
+                sql = sql[:sql.rfind('offset')+6] + ' '+str(n_res_done) +';'
                 noprev = False
-            print('prev: ',n_res_done)
             if n_res_done ==0:
                 noprev = True
                 nonext = False
-            
-            if 'property' not in sql and 'MW' not in sql:
+            if ('property' not in sql and 'MW' not in sql) or len(keys)>1:
                 data = search_results[n_res_done:n_res_done+51]
                 columns = list(data.columns)
-                to_order = False
+                if len(keys)==0:
+                    to_order = False
+                else:
+                    columns=[c.replace('(NA/NA)','') for c in columns]
+                    columns=[c.replace('(na/na)','') for c in columns]
+                    columns=[c.replace('(NA)','') for c in columns]
+                    columns=[c.replace('(na)','') for c in columns]
+                    to_order = True
             else:
                 cur.execute(sql)
                 data1=cur.fetchall()
@@ -911,110 +919,43 @@ def search_db(db):
         elif 'orderby_property' in request.form:
             from_form=request.form
             from_form = from_form.to_dict(flat=False)
+            ascending = True
             if 'ascending' in from_form['select_order']:
                 if 'order by' not in sql:
                     if 'property' not in sql and 'MW' in sql:
                         sql = sql[:sql.rindex('limit')] + ' order by molecule.MW ' +sql[sql.rindex('limit'):]
                     else:
                         sql = sql[:sql.rindex(')')+1]+ ' order by Value.num_value ' + sql[sql.rindex(')')+1:]
-
-                    cur.execute(sql)
-                    all_results=cur.fetchall() 
-                    data, columns = post_process(sql, all_results)
-
-                    search_results = data              
-                    search_results.columns = columns
                 elif 'order by' in sql and 'DESC' in sql:
                     if 'property' not in sql and 'MW' in sql:
                         sql = sql[:sql.rindex('DESC')] + sql[sql.rindex('DESC')+5:]
-                        cur.execute(sql)
-                        all_results = cur.fetchall()
-                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
-                        columns = data.columns
                     else:
                         sql = sql[:sql.rindex('value')+5] + ' ' + sql[sql.rindex('value')+11:]
-                        cur.execute(sql)
-                        all_results=cur.fetchall() 
-                        data = pd.DataFrame(list(all_results), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                        data = data[data.columns[-3:]]
-                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                        data = data.reset_index()
-                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                        columns=['ID','SMILES']
-                        for i in data.columns[1:-2]:
-                            columns.append(i)
-                        data=data[columns]
-                        columns=[c.replace('(NA/NA)','') for c in columns]
-                        columns=[c.replace('(na/na)','') for c in columns]
-                        columns=[c.replace('(NA)','') for c in columns]
-                        columns=[c.replace('(na)','') for c in columns]
-                    search_results = data              
-                    search_results.columns = columns
-                if 'MW' not in sql and 'property' in sql:
-                    search_results=search_results.sort_values(by=from_form['property_orderby'][0])
             else:
+                ascending = False
                 if 'order by' in sql and 'DESC' not in sql:
                     if 'property' not in sql and 'MW' in sql:
-                        sql = sql[:sql.rindex('MW')+3] + 'DESC ' + sql[sql.rindex('MW')+3:]
-                        cur.execute(sql)
-                        all_results = cur.fetchall()
-                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
-                        columns = data.columns     
+                        sql = sql[:sql.rindex('MW')+3] + 'DESC ' + sql[sql.rindex('MW')+3:]   
                     else:               
                         sql = sql[:sql.rindex('value')+5] + ' DESC' + sql[sql.rindex('value')+5:]
-                        cur.execute(sql)
-                        data1=cur.fetchall() 
-                        data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                        data = data[data.columns[-3:]]
-                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                        data = data.reset_index()
-                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                        columns=['ID','SMILES']
-                        for i in data.columns[1:-2]:
-                            columns.append(i)
-                        data=data[columns]
-                        columns=[c.replace('(NA/NA)','') for c in columns]
-                        columns=[c.replace('(na/na)','') for c in columns]
-                        columns=[c.replace('(NA)','') for c in columns]
-                        columns=[c.replace('(na)','') for c in columns]
-                    search_results = data              
-                    search_results.columns = columns
                 elif 'order by' not in sql:
                     if 'property' not in sql and 'MW' in sql:
                         sql = sql[:sql.rindex('limit')] + ' order by molecule.MW DESC ' +sql[sql.rindex('limit'):]
-                        cur.execute(sql)
-                        all_results = cur.fetchall()
-                        data = pd.DataFrame(list(all_results), columns=['ID','SMILES','MW'])
-                        columns = data.columns
                     else:
                         sql = sql[:sql.rindex(')')+1]+ ' order by value.num_value DESC ' + sql[sql.rindex(')')+1:]
-                        cur.execute(sql)
-                        data1=cur.fetchall() 
-                        data = pd.DataFrame(list(data1), columns=['Molecule_id','SMILES','Method','Functional','Basis_set','forcefield','Property','Value'])
-                        data['ID_SMI']=data['Molecule_id'].astype(str)+','+data['SMILES']
-                        data['Property']=data['Property']+'-' +data['Method']+'('+data['Functional']+'/'+data['Basis_set']+')('+data['forcefield']+')'
-                        data = data[data.columns[-3:]]
-                        data=data.pivot_table(index='ID_SMI',columns='Property',values='Value')
-                        data = data.reset_index()
-                        data[['ID','SMILES']]=data['ID_SMI'].str.split(',',expand=True)
-                        columns=['ID','SMILES']
-                        for i in data.columns[1:-2]:
-                            columns.append(i)
-                        data=data[columns]
-                        columns=[c.replace('(NA/NA)','') for c in columns]
-                        columns=[c.replace('(na/na)','') for c in columns]
-                        columns=[c.replace('(NA)','') for c in columns]
-                        columns=[c.replace('(na)','') for c in columns]
-                    search_results = data              
-                    search_results.columns = columns
-                if 'MW' not in sql and 'property' in sql:
-                    search_results=search_results.sort_values(by=from_form['property_orderby'],ascending=False)  
+            
+            if sql.count('value.num_value') > 4:
+                multiprop = True
+                sql = sql[:sql.rfind(')')+1]+';'
+            cur.execute(sql)
+            all_results = cur.fetchall()
+            data, columns = post_process(sql, all_results)
+            search_results = data              
+            search_results.columns = columns
+            if 'MW' not in sql and 'property' in sql:
+                search_results = search_results.sort_values(by=from_form['property_orderby'], ascending = ascending)
             desc=['','']
-            data = tuple(search_results.itertuples(index=False,name=None))
+            data = tuple(search_results[:50].itertuples(index=False,name=None))
             for i in search_results.columns[2:]:
                 desc.append('mean={}, std={}, min={}, max={}'.format(search_results[i].describe()['mean'].round(2),search_results[i].describe()['std'].round(2),search_results[i].describe()['min'].round(2),search_results[i].describe()['max'].round(2)))
             columns=[]

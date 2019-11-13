@@ -45,10 +45,6 @@ install:
   # Install the library with test requirements
   - conda install -c conda-forge numpy pandas
   - conda install -c openbabel openbabel
-  - pip install flask
-  - pip install flask-mysql
-  - pip install pymysql
-  - pip install numpydoc
   - pip install -e .[tests]
   - pip install codecov
 

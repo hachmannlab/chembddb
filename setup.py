@@ -23,6 +23,7 @@ if __name__ == "__main__":
         'chembddb is a big data database generator.',
         long_description=long_description,
         # scripts=['lib/chembddbshell'],
+        include_package_data=True,
         keywords=[
             'Big data', 'SQL database',
             'Web-framework','Materials Science', 

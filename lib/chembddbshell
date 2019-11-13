@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from chembddb import run_config
+from chembddb.chembddb import run_config
 import argparse
 
 ## Argument parser desription

@@ -84,7 +84,7 @@ def connect_mysql(host,user,pw):
 @app.route('/connect',methods=['GET','POST'])
 def connect():
     global cur,all_dbs
-    """establishes mysql connection based on the credentials provided during setup; any changes in credentials should be made in credentails.dat
+    """establishes mysql connection based on the credentials provided during setup
 
     Parameters
     ----------
@@ -105,7 +105,7 @@ def connect():
         return render_template('connect.html')
     
 @app.route('/setup',methods=['GET','POST'])
-def setup(host='',user='',pw='',db=''):
+def setup(host=-1,user='',pw='',db=''):
     """
     Function to setup the database with the chembddb schema
 
@@ -121,14 +121,20 @@ def setup(host='',user='',pw='',db=''):
         the name of the database that needs to be set up
 
     """
-    if host != '':
+    if host != -1:
+        # for python module
         b, a = connect_mysql(host=host,user=user,pw=pw)
-        db = db +'_chembddb'
+        if b == 'invalid' and a == 'credentials':
+            return 'invalid credentials'
+        else:
+            db = db +'_chembddb'
     elif request.method=='POST':
+        # for UI
         db_details=request.form
         db_details=db_details.to_dict(flat=False)
         db=db_details['dbname'][0]+'_chembddb'
     else:
+        # Default landing page for setup
         all_dbs=[]
         cur.execute('show databases;')
         all_dbs_tup=cur.fetchall()
@@ -173,14 +179,18 @@ def setup(host='',user='',pw='',db=''):
             if '_chembddb' in i[0]:
                 m=i[0]
                 all_dbs.append((m[:-9],))
-        if host == '':
+        if host == -1:
+            # successful creation for UI
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,success_msg='The database has been created.')
         else:
+            # successful creation for python module
             return 'Success'
     else:
-        if host == '':
+        if host == -1:
+            # error handling for UI
             return render_template('setup.html',dbname=db,all_dbs=all_dbs,err_msg='Database already exists.')
         else:
+            # error handling for python module
             return 'Failed! Database already exists.'
 
 @app.route('/insert',methods=['GET','POST'])
@@ -217,14 +227,17 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
             m=i[0]
             all_dbs.append((m[:-9],))
     if host !='':
+        # for python module
         b,a = connect_mysql(host=host, user=user,pw=pw)
         db=db+'_chembddb'
     elif request.method=='POST':
+        # for UI
         config_options=request.form
         config_options=config_options.to_dict(flat=False)
         db=config_options['dbname'][0]
         db = db+'_chembddb'
     else:
+        # default landing page
         return render_template('insert.html',all_dbs=all_dbs)
     
     cur.execute('USE INFORMATION_SCHEMA')
@@ -232,11 +245,15 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
     if result == 0:
         error_message='Database does not exist'
         if host == '':
+            # for UI
             return render_template('insert.html',all_dbs=all_dbs,err_msg=error_message)
         else:
+            # for python module
             return 'Failed! Database does not exists.'
     else:
+        # sanity check for files
         if type(conf_file) is str and conf_file=='':
+            # code block being executed on UI action
             files=request.files
             files=files.to_dict(flat=False)
             conf_file=files['config_file'][0]
@@ -247,7 +264,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 db.replace('_chembddb','')
                 db=db.replace('_',' ')
                 if host == '':
-                    return render_template('insert.html',title=db,err_msg='No config file provided or incorrect file format. (csv required)')
+                    return render_template('insert.html',all_dbs=all_dbs,title=db,err_msg='No config file provided or incorrect file format. (csv required)')
                 else:
                     return 'Failed to insert all data! No config file provided or incorrect file format. (csv required)'
             elif data_file.filename=='' or data_file.filename.rsplit('.',1)[1]!='csv':
@@ -268,6 +285,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
             data=pd.read_csv(data_file)
 
         elif type(conf_file) is str and conf_file!='':
+            # executed from python module call
             if os.path.exists(conf_file) == False:
                 return 'Failed! Config file does not exist in the path specified'
             if os.path.exists(data_file) == False:
@@ -288,8 +306,10 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
         if all_prop==False:
             db=db.replace('_',' ')
             if host=='':
+                # UI
                 return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Property(s) in config file do not exist in data.')
             else:
+                # python module
                 return 'Failed! Property(s) in config file do not exist in data.'
         else:
             if smi_col!='' and smi_col not in data.columns:
@@ -304,10 +324,10 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                 else:
                     return 'Failed! Identifier(s) listed do not exist in data.'
             else:
+                # if all info is correctly provided this code will be executed
                 cur.execute('USE %s;'%db)
                 db = db.replace('_chembddb','')
                 # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method for that property, if it does not exist, fetch the last id and create a new entry
-
                 # populating and property table
                 entered_list=[]
                 cur.execute("SELECT Property_str from Property")
@@ -317,6 +337,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         pass
                     else:
                         entered_list.append(prop)
+                        # TODO: try insert if does not exist using the SQL command
                         cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
 
                 # populating the model table
@@ -331,10 +352,6 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                         cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
 
                 # populating the functional table
-                ####testing####
-                cur.execute('show tables;')
-                tabs=cur.fetchall()
-                ####testing####
                 cur.execute("SELECT name FROM Functional")
                 functionals = cur.fetchall()
                 entered_list = []
@@ -494,6 +511,7 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
                     db=db.replace('_',' ')
                     if host=='':
                         if to_drop != []:
+                            all_dbs.append(db)
                             return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
                         else:
                             return render_template('insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
@@ -505,6 +523,13 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
 
 @app.route('/search',methods=['GET','POST'])
 def search():
+    # cur.execute('show databases;') 
+    # all_dbs_tup=cur.fetchall()
+    # all_dbs=[]
+    # for i in all_dbs_tup:
+    #     if '_chembddb' in i[0]:
+    #         m=i[0]
+    #         all_dbs.append((m[:-9],))
     return render_template('search.html',all_dbs=all_dbs)
 
 @app.route('/search_db<db>',methods=['GET','POST'])
@@ -1070,7 +1095,8 @@ def delete(host='',user='',pw='',db=''):
         elif 'search-query' in details:
 
             if 'exampleRadios' not in details:
-                cur.execute('drop database {}'.format(details['dbname']))
+                dbname = dbname+'_chembddb'
+                cur.execute('drop database {}'.format(dbname))
                 cur.execute('show databases;')
                 all_dbs_tup=cur.fetchall()
                 all_dbs=[]

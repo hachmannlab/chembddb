@@ -13,7 +13,12 @@
     <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
     <script> $(function () {
         $('[data-toggle="tooltip"]').tooltip()
-      })</script>
+      })
+      $(function (){
+        $('[data-togle="popover"]').popover()
+      })
+      </script>
+    
 </head>
 
 </div>
@@ -185,17 +190,33 @@
     Showing {{ini}} - {{fin}} results out of {{n_res}}.
     {% for cols in columns %}
         {% if cols[0] != 'SMILES' and cols[0] != 'ID' %}
-        <th>{{cols[0]}}<span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" data-placement="right" title="Method: {{cols[1]}}">
-        </span></th>
+        <th>{{cols[0]}}<span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" data-placement="right" title="Meta data: {{cols[1]}}"></span>
+            <span class="bi bi-graph-up" data-toggle="tooltip" data-placement="right" title="{{desc[columns.index(cols)]}}"><svg class="bi bi-graph-up" width="1em" height="1em" fill="currentColor" xmlns="http://www.w3.org/2000/svg" >
+                <path d="M0 0h1v16H0V0zm1 15h15v1H1v-1z"/>
+                <path fill-rule="evenodd" d="M14.39 4.312L10.041 9.75 7 6.707l-3.646 3.647-.708-.708L7 5.293 9.959 8.25l3.65-4.563.781.624z"/>
+                <path fill-rule="evenodd" d="M10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4h-3.5a.5.5 0 0 1-.5-.5z"/>
+              </svg> </span></td>
+        </th>
         {% else %}
         <th>{{cols[0]}}</th>
         {% endif %}
     {% endfor %}
-    <tr>
+    <!--<tr>
         {% for d in desc %}
-        <td>{{d}}</td>
-        {% endfor %}
-    </tr>
+        {% if d!='' %}
+        <td>Metrics:
+            <span class="bi bi-graph-up" data-toggle="tooltip" data-placement="right" title="{{d}}"><svg class="bi bi-graph-up" width="1em" height="1em" fill="currentColor" xmlns="http://www.w3.org/2000/svg" >
+            <path d="M0 0h1v16H0V0zm1 15h15v1H1v-1z"/>
+            <path fill-rule="evenodd" d="M14.39 4.312L10.041 9.75 7 6.707l-3.646 3.647-.708-.708L7 5.293 9.959 8.25l3.65-4.563.781.624z"/>
+            <path fill-rule="evenodd" d="M10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4h-3.5a.5.5 0 0 1-.5-.5z"/>
+          </svg> </span></td>
+        <!--<td>Metrics:<span class="bi bi-graph-up" data-toggle="tooltip" data-placement="right" title="{{d}}"></span></td>-->
+        <!--<td>{{d}}</td>-->
+        <!--{% else %}-->
+        <!--<td></td>        -->
+        <!--{% endif %}-->
+        <!--{% endfor %}-->
+    <!--</tr>-->
     {% for row in data %}
 
     <tr style="height: 60px; align-content: center" onclick="window.open('molecule-{{title}}-{{row[0]}}','_blank')">

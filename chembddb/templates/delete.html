@@ -14,22 +14,22 @@
         function get_value(){
             var val=document.getElementsByName('exampleRadios');
        
-            if(val[0].checked){
+            if(val[1].checked){
               document.getElementById('smiles_search').disabled=false;
               document.getElementById('MW').disabled=false;
-              document.getElementById('2').disabled=true;
+              //document.getElementById('2').disabled=true;
               len = document.querySelectorAll('[id^="propid-"]').length
               for(p=0;p<len;p++){
                 document.querySelectorAll('[id^="propid-"]')[p].disabled=true;
                 document.querySelectorAll('[id^="propid-"]')[p].checked=false;
               }
             }
-            else if(val[1].checked){
+            else if(val[2].checked){
               document.getElementById('smiles_search').disabled=true;
               document.getElementById('smiles_search').checked=false;
               document.getElementById('MW').disabled=true;
               document.getElementById('MW').checked=false;
-              document.getElementById('2').disabled=false;
+              //document.getElementById('2').disabled=false;
               len = document.querySelectorAll('[id^="propid-"]').length
               for(p=0;p<len;p++){
                 document.querySelectorAll('[id^="propid-"]')[p].disabled=false;
@@ -92,11 +92,25 @@
                 </form>
                 {% else %}
                 <form name='search' action="" method="post">
-                    <div class="form-group">
+                    <div class="form-group" style="display:none">
                                 <label for="dbname">Select database to delete/delete from:</label>
                                 <input type="text" name='dbname' class="form-control" id="dbname" value='{{dbname}}' placeholder="Name">
                     </div>
                     <div class="search_table">
+                      <div class="form-check">
+
+                    <table class="table table-bordered" style="align-content: center;  border:'0' ;">
+                      <tr>
+                        <td>
+                        <input class="form-check-input" type="radio" name="exampleRadios" value="option_null">&nbsp;&nbsp;&nbsp;&nbsp;
+                        <label class="form-check-label" for="exampleRadios1">
+                          Delete the database {{dbname}}.
+                        </label>
+                      </div>
+                    </div>
+                  </td>
+                  </tr>
+                  </table>
                     <table class="table table-bordered" style="align-content: center;  border:'0' ;">
                         <col width="240">
                         <col width="240">
@@ -144,7 +158,7 @@
                                 <td><input id='to_{{row[1]}}' type="text" name="{{row[1]}}_to_val" class="searchTerm_right" placeholder="Max" style="width:100%" size='25' disabled></td>
                             </tr>
                         {% endfor %}
-                        <tr>
+                        <!--<tr>
                             <td> 
                             <input id='2' type='checkbox' name='method' value='method' onclick="document.getElementById('method').disabled=!this.checked;document.getElementById('func').disabled=!this.checked;document.getElementById('basis').disabled=!this.checked;document.getElementById('ff').disabled=!this.checked" disabled>&nbsp;&nbsp; Search for properties by Method
                             </td>&nbsp;&nbsp;&nbsp;&nbsp;
@@ -171,14 +185,44 @@
                                     {% endfor %}
                                 </select>
                             </td>
-                        </tr>
+                        </tr>-->
         
                     </table>
                 
                     </br>
                     <!-- <input id='csv' type="checkbox" name='csv' value='csv' onclick="document.getElementById('path').disabled=!this.checked">&nbsp;&nbsp;save as CSV&nbsp;&nbsp;<input id='path' type='text' name='path' class='searchTerm' placeholder='path+name.csv' style="resize:none; color: black" disabled> -->
         
-                    <button type="submit" name="search-query" class="btn btn-primary btn" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">Delete</button>
+                    <!--<button type="submit" name="search-query" class="btn btn-primary btn" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"  >Delete</button>-->
+                    <button type="button" name="search-query" class="btn btn-primary btn" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" data-toggle="modal" data-target="#centralModalSm" >Delete</button>
+                    <!--<button type="button" class="btn btn-primary waves-effect waves-light" data-toggle="modal" data-target="#centralModalSm">Small Modal</button>-->
+                    
+                      <!-- Central Modal Small -->
+                      <div class="modal fade" id="centralModalSm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-sm" role="document">
+                          <!--Content-->
+                          <div class="modal-content">
+                            <!--Header-->
+                            <div class="modal-header">
+                              <h4 class="modal-title w-100" id="myModalLabel">Are you sure?</h4>
+                              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                              </button>
+                            </div>
+                            <!--Body-->
+                            <div class="modal-body">
+                              Do you want to delete?
+                            </div>
+                            <!--Footer-->
+                            <div class="modal-footer">
+                              <button type="button" class="btn btn-secondary btn-sm" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"data-dismiss="modal">Close</button>
+                              <button type="submit" name="search-query" class="btn btn-primary btn-sm" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">Delete</button>
+                            </div>
+                          </div>
+                          <!--/.Content-->
+                        </div>
+                      </div>
+                      <!-- Central Modal Small -->
+
             </form>
             {% endif %}
             {% if err_msg %}

@@ -92,7 +92,7 @@ Insert
 
 - in order to insert data into the database, 2 types of csv files are required:
 
-    - a config file: this file consists of all the information about the properties that the user wants to enter into the database, along with their units and the methods used to calculate them
+    - a meta-data file: this file consists of all the meta-data (i.e., the properties, along with their units and the methods used to calculate them)
     .. image:: ./images/config.png
        :width: 80%
        :align: center

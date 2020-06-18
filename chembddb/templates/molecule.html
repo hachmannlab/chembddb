@@ -70,19 +70,21 @@
                   </tr>
                   {% endfor %}
                </table>
-               <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{url_smi}}"  target='myIframe'>
-               <button type="button" data-toggle="modal" data-target="#myModal" name="pubchem" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">PubChem</button>
+               <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{url_smi}}"  target='_blank'>
+               <button type="button" name="pubchem" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">PubChem</button>
                </a>
-               
-               <div class="modal fade" id="myModal" role="dialog">
+               <!--<a href="https://pubchem.ncbi.nlm.nih.gov/#query={{url_smi}}"  target='_blank'>
+                  <button type="button" name="chemspider" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">ChemSpider</button>
+               </a>-->
+               <!--<div class="modal fade" id="myModal" role="dialog">
                   <div class="modal-dialog"></div>
                   <div class="modal-header">
                   <button type="button" class="close" data-dismiss="modal">&times;</button>
                   </div>
                   <div id="modal-content">
-                  <iframe name='myIframe' width="500" height="400" style="border:none;"></iframe>
+                  <iframe name='myIframe' width="80%" height="80%" style="border:none;z-index:5;"></iframe>
                   </div>
-               </div>
+               </div>-->
          </div>
             <div class='col-md-6'>
                <div class='row' >

@@ -4,6 +4,10 @@
 # ChemBDDB
 ChemBDDB is a big data database toolkit which facilitates the efficient management and sharing of chemical and materials data. It can setup a database, populate it with the data provided by the user and enable the user to search the database, visualize each molecule in the database and share the data via the web.
 
+<p align="center">
+  <img align="middle" src="./docs/images/chembddb_logo.png" alt="chembddb" width="400px" class="center">
+ </p>
+
 Program Version: 0.1
 
 Release Date: July 5, 2019

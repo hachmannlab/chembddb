@@ -18,13 +18,18 @@
     </script>
 </head>
 <body>
-
-        <nav class="navbar navbar-expand-lg navbar-light" style="background-color: #005bbb;">
+        <div class="mynav">
+        <nav class="navbar navbar-expand-lg navbar-light" style="height:80px;
+        background-color: #005bbb">
           <!--<a class='navbar-brand' href='/'>
             <img src='../static/chembddb_logo.png' alt='logo' style='width:60px;background-color:#ffffff'>
           </a>-->
                 <div class="collapse navbar-collapse" id="navbarNav">
-                  <ul class="navbar-nav">
+                    <a href='/'>
+                      <img src='../static/chembddb_logo.png' alt='logo' style='width:130px;background-color:#ffffff;float: right;
+                      height: 80px;'>
+                    </a>
+                  <ul class="navbar-nav" style="margin-top: 15px;">
                     <li class="nav-item active">
                       <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Connect <span class="sr-only">(current)</span></a>
                     </li>
@@ -43,6 +48,11 @@
                     <li class="nav-item">
                       <a class="nav-link" style="color:#ffffff;font-family:Exo;" >Delete</a>
                     </li>
+                    <!--<li class="nav-item">
+                      <a class='navbar-brand' href='/'>
+                        <img src='../static/chembddb_logo.png' alt='logo' style='width:60px;background-color:#ffffff'>
+                      </a>
+                    </li>-->
                     <!-- <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color:#ffffff;font-family:Exo;" >
                           All Databases
@@ -56,6 +66,7 @@
                   </ul>
                 </div>
               </nav>
+            </div>
 
               <div class="setup">
                     <meta charset="UTF-8">

@@ -1053,7 +1053,7 @@ def molecule(dbid):
     with open(app.config['UPLOAD FOLDER']+'/chembddb_{}.xyz'.format(mol_data['ID'][0])) as f:
         xyz = f.read()
         mol_data['XYZ'] = xyz
-        
+
     if request.method == 'POST' and 'Download' in request.form:
         mol_data.to_json('molecule.json')
         msg = 'Downloaded molecule.json'

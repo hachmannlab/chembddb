@@ -11,3 +11,22 @@ th, td {
     margin-left: 50px;
     margin-right: 50px;
     }
+
+    .mynav{
+        height:80px;
+        background-color: #005bbb;
+    }
+ 
+
+    .navbar-light .navbar-nav .nav-link{
+        font-size:19px;
+    }
+    .navbar-nav>li {
+        padding-right:32px;
+    }
+
+    /*.navbar-light .navbar-nav .active>.nav-link{
+        background-color:white;
+        color: #005bbb;
+        font-weight: bold;
+    }*/

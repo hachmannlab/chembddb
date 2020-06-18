@@ -907,7 +907,7 @@ def search_db(db):
             return render_template('search_db.html',ini=n_res_done,fin=fin,to_order=to_order, noprev = noprev, nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
         else:
             return render_template('search_db.html',ini=n_res_done,fin=fin, to_order=to_order, noprev = noprev,nonext=False,data = data,properties=properties,columns=columns,temp_met=temp_met,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
-    elif 'download_csv' in request.form:
+    elif 'download_csv' in request.form or 'download_json' in request.form:
         from_form = request.form
         from_form = from_form.to_dict(flat=False)
         desc=['','']
@@ -926,13 +926,20 @@ def search_db(db):
             all_results = cur.fetchall()
             data, columns = post_process(sql, all_results)
             to_order = True
-
-        data.to_csv('results.csv',index=None)
+        
+        if 'download_json' in request.form:
+            import json
+            data.to_json('results.json')
+            msg='Results have been downloaded as results.json'
+        else:
+            print(data)
+            data.to_csv('results.csv',index=None)
+            msg='Results have been downloaded as results.csv'
         ## results that go to the html are still limited to 50
         for i in data.columns[2:]:
             desc.append('mean={}, std={}, min={}, max={}'.format(data[i].describe()['mean'].round(2),data[i].describe()['std'].round(2),data[i].describe()['min'].round(2),data[i].describe()['max'].round(2)))
         # search_results.to_csv('results.csv',index=None)
-        msg='Results have been downloaded as results.csv'
+        
         columns=[]
         for i in data.columns:
             if '-' not in i:
@@ -1001,16 +1008,15 @@ def search_db(db):
                     columns.append((i.split('-')[0],i.split('-')[1]+'-'+i.split('-')[2]))
                 else:
                     columns.append((i.split('-')[0],i.split('-')[1]))
-        return render_template('search_db.html',data = data,properties=properties,to_order = True, ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)        
+        return render_template('search_db.html',data = data,properties=properties,to_order = True, ini=ini,fin=fin,noprev=noprev,nonext=nonext,columns=columns,methods=methods,n_res=n_res,basis=basis_sets,functionals=functionals,forcefields=forcefields,all_dbs=all_dbs,title=db,desc=desc)
+
     else:
         return render_template('search_db.html',properties=properties,methods=methods,basis=basis_sets, functionals=functionals, forcefields=forcefields,all_dbs=all_dbs,title=db)
 
 @app.route('/molecule-<dbid>',methods=['GET','POST'])
 def molecule(dbid):
-    
     # cur,conn=connect_mysql()
     import urllib.parse
-    from urllib.request import urlopen
     db=dbid.split('-')[0]
     db=db.replace(' ','_')
     id=dbid.split('-')[1]
@@ -1037,10 +1043,20 @@ def molecule(dbid):
     for i in mol_data.columns[1:-4]:
         cols.append(i)
     mol_data=mol_data[cols]
+    msg = ''
+
+
     mol_ob = pybel.readstring("smi",mol_data['SMILES'][0])
     mymol = pybel.readstring("smi", mol_ob.write("can"))
     mymol.make3D(forcefield='mmff94', steps=50)
     mymol.write('xyz',app.config['UPLOAD FOLDER']+'/chembddb_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
+    with open(app.config['UPLOAD FOLDER']+'/chembddb_{}.xyz'.format(mol_data['ID'][0])) as f:
+        xyz = f.read()
+        mol_data['XYZ'] = xyz
+        
+    if request.method == 'POST' and 'Download' in request.form:
+        mol_data.to_json('molecule.json')
+        msg = 'Downloaded molecule.json'
     cols=[c.replace('(na/na)','') for c in cols]
     cols=[c.replace('(na)','') for c in cols]
     cols=[c.replace('(na)','') for c in cols]
@@ -1048,7 +1064,8 @@ def molecule(dbid):
     mol_data = (tuple(cols[:]),)+mol_data
     mol_data=tuple(zip(*mol_data))
     db=db.replace('_',' ')
-    return render_template('molecule.html',mol_data=mol_data,columns=cols,title=db,all_dbs=all_dbs,url_smi=url_smi)
+
+    return render_template('molecule.html',mol_data=mol_data,columns=cols,title=db,all_dbs=all_dbs,url_smi=url_smi,msg=msg)
 
 @app.route('/delete',methods=['GET','POST'])
 def delete(host='',user='',pw='',db=''):

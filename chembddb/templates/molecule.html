@@ -70,9 +70,20 @@
                   </tr>
                   {% endfor %}
                </table>
+               <div>
+                  <form name="to_download" action="" method="POST">
+
                <a href="https://pubchem.ncbi.nlm.nih.gov/#query={{url_smi}}"  target='_blank'>
                <button type="button" name="pubchem" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">PubChem</button>
                </a>
+               <button type="submit" name="Download" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">Download</button>
+               </form></div>
+               {% if msg %}
+                       <div class="alert alert-success" role="alert">
+                       <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
+                             {{msg}}
+                           </div>
+                       {% endif %}
                <!--<a href="https://pubchem.ncbi.nlm.nih.gov/#query={{url_smi}}"  target='_blank'>
                   <button type="button" name="chemspider" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">ChemSpider</button>
                </a>-->

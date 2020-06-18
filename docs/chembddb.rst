@@ -1,5 +1,8 @@
 Getting started with ChemBDDB
 =============================
+<p align="center">
+  <img align="middle" src="../chembddb/static/chembddb_logo.png" alt="ChemML" width="400px" class="center">
+ </p>
 
 The chembddb module is executed from the following command line:
 

@@ -10,13 +10,13 @@ import sys
 def test_chembddb_imported():
     assert 'chembddb' in sys.modules
 
-@pytest.mark.parametrize("host,user,pw,res",[('127.0.0.1','root','aditya123',pymysql.cursors.Cursor),('127.0.0.1','root','wrongpw',str)])
+@pytest.mark.parametrize("host,user,pw,res",[('127.0.0.1','root','',pymysql.cursors.Cursor),('127.0.0.1','root','wrongpw',str)])
 def test_connect_mysql(host,user,pw,res):
     """Testing mysql connect function"""
     cur,all_dbs=chembddb.connect_mysql(host,user,pw)
     assert type(cur) is res
 
-@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','aditya123','ben','Success'),('127.0.0.1','root','aditya123','ben','Failed! Database already exists.')])
+@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','','ben','Success'),('127.0.0.1','root','aditya123','ben','Failed! Database already exists.')])
 def test_setup(host,user,pw,db,res):
     result = chembddb.setup(host=host,user=user,pw=pw,db=db)
     assert result == res
@@ -26,7 +26,7 @@ def test_setup(host,user,pw,db,res):
 #    result = chembddb.insert(host=host, user=user, pw=pw, db=db, smi_col=smi_col, mol_identifier=mol_identifier, conf_file=conf_file, data_file=data_file)
 #    assert result == res
 
-@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','aditya123','ben','Successfully deleted the database'),('127.0.0.1','root','aditya123','ben','Failed! database does not exist')])
+@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','','ben','Successfully deleted the database'),('127.0.0.1','root','','ben','Failed! database does not exist')])
 def test_delete(host, user, pw, db, res):
     result = chembddb.delete(host=host, user=user, pw=pw, db=db)
     assert result == res

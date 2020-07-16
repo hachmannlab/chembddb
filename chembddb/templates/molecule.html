@@ -71,6 +71,15 @@
                   <tr style="height: 60px; align-content: center">
                      <th>{{mol[0]}}</th>
                      <td>{{mol[1]}}</td>
+                     {% if mol[2] == 'True' %}
+                     <td>
+                        <form name="insert" action="" method="POST">
+                        <button type="submit" name="addtodb" class="btn btn-primary" value="{{mol[0]}},{{mol[1]}}" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">Add to Database</button>
+                        </form>
+                     </td>
+                     {% else %}
+                     <td></td>
+                     {% endif %}
                   </tr>
                   {% endfor %}
                </table>

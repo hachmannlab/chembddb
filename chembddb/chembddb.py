@@ -4,6 +4,8 @@ import os
 import sys
 import pandas as pd
 from copy import deepcopy
+from chembddb import molidentfiers
+
 try:
     import pybel
 except:
@@ -21,7 +23,6 @@ upload_directory=os.getcwd()
 app.config['UPLOAD FOLDER']=upload_directory
 
 def post_process(sql, from_db):
-    abc = 0
     """
     Helper function to post process the results from the database
 
@@ -39,6 +40,7 @@ def post_process(sql, from_db):
     columns: list of str
         list of formatted and cleaned column names
     """
+    abc = 0
     if 'MW' in sql and 'property' not in sql:
         data = pd.DataFrame(list(from_db), columns=['ID','SMILES','MW'])
         columns = list(data.columns)
@@ -85,7 +87,6 @@ def connect_mysql(host,user,pw):
     
 @app.route('/connect',methods=['GET','POST'])
 def connect():
-    global cur,all_dbs
     """establishes mysql connection based on the credentials provided during setup
 
     Parameters
@@ -95,6 +96,7 @@ def connect():
     cur: cursor object
         pointer to the MySQL database; used to execute all SQL queries
     """ 
+    global cur,all_dbs
     if request.method=='POST':
         cred=request.form
         cred = cred.to_dict(flat=False)
@@ -158,7 +160,7 @@ def setup(host=-1,user='',pw='',db=''):
     if result == 0:
         cur.execute('CREATE DATABASE %s;'%db)
         cur.execute('USE %s;'%db)
-        cur.execute('CREATE TABLE `%s`.`Molecule` (`id` INT NOT NULL AUTO_INCREMENT,`SMILES_str` VARCHAR(500) DEFAULT \'NONE\', `InChI` VARCHAR(200) DEFAULT \'NONE\',`Molecule_identifier` VARCHAR(120) DEFAULT \'NONE\',`MW` FLOAT, PRIMARY KEY (`id`));'%db)
+        cur.execute('CREATE TABLE `%s`.`Molecule` (`id` INT NOT NULL AUTO_INCREMENT,`SMILES` VARCHAR(300) DEFAULT \'NONE\', `Standard_InChI` VARCHAR(400) DEFAULT \'NONE\',`Standard_InChI_Key` VARCHAR(100) DEFAULT \'NONE\',`CAS_Registry_Number` VARCHAR(200) DEFAULT \'NONE\',`IUPAC_Name` VARCHAR(400) DEFAULT \'NONE\',`Other_name` VARCHAR(1000) DEFAULT \'NONE\',`Chemical_Formula` VARCHAR(100) DEFAULT \'NONE\',`MW` FLOAT, PRIMARY KEY (`id`));'%db)
         # cur.execute('CREATE TABLE `%s`.`Credit`(`id` INT NOT NULL AUTO_INCREMENT,`DOI` VARCHAR(100) UNIQUE DEFAULT \'None\',`details` VARCHAR(100) DEFAULT \'None\',PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Property`(`id` INT NOT NULL AUTO_INCREMENT,`Property_str` VARCHAR(100) NOT NULL UNIQUE,`Unit` VARCHAR(100) NOT NULL,PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Model`(`id` INT NOT NULL AUTO_INCREMENT,`method_name` VARCHAR(100) NOT NULL UNIQUE,`options` VARCHAR(500),PRIMARY KEY (`id`));'%db)
@@ -195,32 +197,9 @@ def setup(host=-1,user='',pw='',db=''):
             # error handling for python module
             return 'Failed! Database already exists.'
 
-@app.route('/insert',methods=['GET','POST'])
-def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file='',data_file=''):
-    """
-    Function to insert data into an existing database
-
-    Parameters
-    ----------
-    host: str default=''
-        the hostname is the domain name or server name
-    user: str default=''
-        the username for mysql
-    pw: str default=''
-        the password for mysql
-    db: str default=''
-        the name of the database that needs to be set up
-    smi_col: str default=''
-        name/header of the smiles column in your data (csv) file 
-    mol_identifier: str default=''
-        name/header of any other molecule identifier in your data (csv) file
-    conf_file: str default=''
-        path to the file containing all the configurations/options (csv); property names should be the same as the column headers in your data (csv) file
-    data_file: str default=''
-        path to the file containing the data that needs to be entered into the database
-
-    """
-    global all_dbs
+@app.route('/temp_insert',methods=['GET','POST'])
+def temp_insert():
+    global all_dbs, cur, data,db, mol_ids, con
     mi_cols=[]
     cur.execute('show databases;') 
     all_dbs_tup=cur.fetchall()
@@ -229,300 +208,275 @@ def insert(host='',user='',pw='',db='',smi_col='',mol_identifier='',conf_file=''
         if '_chembddb' in i[0]:
             m=i[0]
             all_dbs.append((m[:-9],))
-    if host !='':
-        # for python module
-        b,a = connect_mysql(host=host, user=user,pw=pw)
-        db=db+'_chembddb'
-    elif request.method=='POST':
-        # for UI
+
+    if request.method=='POST' and 'config' not in request.form and 'meta-data' not in request.form:
+        # for UI with only the data file
         config_options=request.form
         config_options=config_options.to_dict(flat=False)
         db=config_options['dbname'][0]
         db = db+'_chembddb'
+        files = request.files
+        #files = files.to_dict(flat=False)
+        data_file = files['data_file']
+        print(data_file.filename)
+        if data_file.filename.rsplit('.',1)[1]!='csv':
+            db.replace('_chembddb','')
+            db=db.replace('_',' ')
+            return render_template('temp_insert.html',all_dbs = all_dbs,title=db,err_msg='No data file provided or incorrect file format. (csv required)')
+        else:
+            data = pd.read_csv(data_file)
+            return render_template('temp_insert.html',all_dbs=all_dbs,data_validated=True,cols = list(data.columns))
+
+    elif request.method == 'POST' and 'config' in request.form:
+        #print(data.head())
+        config_options = request.form
+        config_options=config_options.to_dict(flat=False)
+        print(config_options)
+        # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method for that property, if it does not exist, fetch the last id and create a new entry
+        # populating and property table
+        molecule_identifiers_cols = [] 
+        molecule_identifiers = []
+        cols = list(data.columns)
+
+        for key in config_options.keys():
+            if 'hidden' in key:
+                molecule_identifiers_cols.append(config_options[key][0])
+                molecule_identifiers.append(key[len('hidden_'):-3])
+            else:
+                continue
+        #print(cols)
+        print(molecule_identifiers)
+        remaining_cols = list(set(cols)-set(molecule_identifiers_cols))
+        mol_ids = {}
+        for i in range(len(molecule_identifiers)):
+            mol_ids[molecule_identifiers[i]] = molecule_identifiers_cols[i]
+
+        return render_template('temp_insert.html',props =remaining_cols, prop_length = len(remaining_cols), all_dbs=all_dbs, title=db,success_msg='successful')
+
+    elif request.method == 'POST' and 'meta-data' in request.form:
+        meta_data = request.form
+        print(meta_data)
+        meta_data = meta_data.to_dict(flat=False)
+        props = []
+        for k in meta_data.keys():
+            if 'hidden_prop_id' in k:
+                props.append(meta_data[k])
+        
+        print(props)
+        cur.execute('Use {};'.format(db))
+        # fetching properties from the table and checking them against the entered properties from the insert page. If they are not already existing in the table, insert them. 
+        entered_list=[]
+        cur.execute("SELECT Property_str from Property")
+        properties = cur.fetchall()
+        for prop, units in zip(props,meta_data['2_unit']):
+            if any(prop in i for i in properties) or prop in entered_list:
+                pass
+            else:
+                entered_list.append(prop)
+                # TODO: try insert if does not exist using the SQL command
+                cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
+        print('entered property')
+        # populating the model table
+        cur.execute("SELECT Method_name from Model")
+        models = cur.fetchall()
+        entered_list=[]
+        for method in meta_data['2_method']:
+            if any(method in i for i in models) or method in entered_list:
+                pass
+            else:
+                entered_list.append(method)
+                cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
+
+        print('entered method')
+        
+        # populating the functional table
+        cur.execute("SELECT name FROM Functional")
+        functionals = cur.fetchall()
+        entered_list = []
+        for func in meta_data['2_functional']:
+            if any(func in i for i in functionals) or func in entered_list:
+                pass
+            else:
+                entered_list.append(func)
+                cur.execute("INSERT INTO Functional(name) VALUES(%s)",[func])
+
+        print('entered functional')
+
+        # populating the basis set table
+        cur.execute("SELECT name FROM Basis_set")
+        basis_sets = cur.fetchall()
+        entered_list = []
+        for basis in meta_data['2_basis']:
+            if any(basis in i for i in basis_sets) or basis in entered_list:
+                pass
+            else:
+                entered_list.append(basis)
+                cur.execute("INSERT INTO Basis_set(name) VALUES(%s)",[basis])
+
+        print('entered basis_set')
+
+        # populating the forcefield table
+        cur.execute("SELECT name FROM Forcefield")
+        forcefields = cur.fetchall()
+        entered_list = []
+        for ff in meta_data['2_forcefield']:
+            if any(ff in i for i in forcefields) or ff in entered_list or ff=='None':
+                pass
+            else:
+                entered_list.append(basis)
+                cur.execute("INSERT INTO Forcefield(name) VALUES(%s)",[ff])
+        
+        print('entered forcefield')
+        # populating the molecule table
+
+        cur.execute("SELECT "+ ''.join(i.lower()+',' for i in mol_ids.keys())+"MW from Molecule")
+        molecules = cur.fetchall()
+        new_entries=[]
+
+        # check last id for molecule, add molecule index, melt dataframe, add property and method index using lambda and dictionary
+        # check for molecule identifier (name, IUPAC, )
+        pybel_identifiers = {'smiles':'smiles','standard_inchi_key':'inchikey','standard_inchi':'inchi'}
+        print(mol_ids)
+        
+        for mol in range(len(data)):
+            mw_flag = False
+            row = []
+            for k,v in mol_ids.items():
+                if k.lower() in pybel_identifiers.keys():
+                    try:
+                        m = pybel.readstring(pybel_identifiers[k.lower()],data.loc[mol][v])
+                        if k == 'smiles':
+                            iden = m.write('can').strip()
+                            if mw_flag == False:
+                                mw = m.molwt
+                                mw = round(mw,3)
+                                mw_flag = True
+                        else:
+                            iden = m.write(pybel_identifiers[k.lower()]).strip()
+                            if mw_flag == False:
+                                mw = m.molwt
+                                mw = round(mw,3)
+                                mw_flag = True
+                    except:
+                        db = db.replace('_',' ')
+                        return render_template('temp_insert',title=db,all_dbs = all_dbs, err_msg='Invalid SMILES on row number {}.'.format(str(mol)))
+                    row.append(iden)
+                else:
+                    row.append(data.loc[mol][v])
+                    if mw_flag == False:
+                        mw_flag = True
+                        url = 'http://cactus.nci.nih.gov/chemical/structure/'
+                        try:
+                            url = url + data.loc[mol][v] + '/mw'
+                            ans = urlopen(url).read().decode('utf8')
+                        except HTTPError:
+                            mw = NULL
+            if mw_flag == True:
+                row.append(mw)
+            new_entries.append(row)
+
+        ## temporary fix to enable for case-insensitivity in molecule-identifier
+        molecules = [list(x) for x in molecules]
+        new_entries = [list(x) for x in new_entries]
+        #print(molecules)
+        #print(new_entries)
+        #for i in molecules:
+        #    i[1] = i[1].lower()
+        #for i in new_entries:
+        #    i[1] = i[1].lower()
+        molecules = tuple(tuple(x) for x in molecules)
+        new_entries = tuple(tuple(x) for x in new_entries)
+        required_entries = list(set(new_entries) - set(molecules))
+        if len(mol_ids.keys())>1:
+            mol_q = ''.join(i+',' for i in mol_ids.keys())
+            vals = ''.join('%s,' for i in range(len(mol_ids)+1))
+        else:
+            mol_q = list(mol_ids.keys())[0] + ','
+            vals = '%s,%s,'
+        cur.executemany('INSERT INTO Molecule('+mol_q+'MW) VALUE('+vals[:-1]+')',required_entries)
+        print('mol done')
+        ## populating the credit table
+        ## todo: figure out how to deal with the credit/publication
+        ## cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
+        print(list(mol_ids.values()))
+        cols=[i[0] for i in props]
+        for i in list(mol_ids.values()):
+            cols.append(i)
+        print(cols)
+        data = data[cols]
+        #if smi_col!='':
+        #    cols.append(smi_col)
+        #if mol_identifier!='':
+        #    cols.append(mol_identifier)
+        #data = data[cols]
+        ## populating the values table
+
+        cur.execute('SELECT id,Property_str from Property')
+        all_props = cur.fetchall()
+        prop_id = dict(map(reversed,all_props))
+        cur.execute('SELECT id,Method_name from Model')
+        all_models = cur.fetchall()
+        model_id = dict(map(reversed,all_models))
+        cur.execute('SELECT id,name from Functional')
+        all_functionals = cur.fetchall()
+        functional_id=dict(map(reversed,all_functionals))
+        cur.execute('SELECT id,name from  Basis_set')
+        all_basis = cur.fetchall()
+        basis_id = dict(map(reversed,all_basis))
+        cur.execute('SELECT id,name from Forcefield')
+        all_ff = cur.fetchall()
+        ff_id = dict(map(reversed,all_ff))
+        mol_q = 'ID,'+ list(mol_ids.keys())[0]
+        cur.execute("SELECT "+mol_q+" from Molecule")
+        all_mols = cur.fetchall()
+        molecule_id = dict(map(reversed,all_mols))
+        
+        #print(data[list(mol_ids.values())[0]])
+        data['molecule_id']=data[list(mol_ids.values())[0]].apply(lambda a: molecule_id[pybel.readstring('smi',a).write('can').strip()])
+        #print(data)
+        
+        data.drop(mol_ids.values(),1,inplace=True)
+        data = data.melt('molecule_id')
+        data['property_id']=data['variable'].apply(lambda a: prop_id[a])
+        print(data.head())
+        print(props)
+        print(model_id[meta_data['2_method'][props.index(props[0])]])
+        data['model_id']=data['variable'].apply(lambda a: model_id[meta_data['2_method'][props.index([a])]])
+        print(data)
+        data['functional_id']=data['variable'].apply(lambda a: functional_id[meta_data['2_functional'][props.index([a])]])
+        data['basis_id']=data['variable'].apply(lambda a: basis_id[meta_data['2_basis'][props.index([a])]])
+        data['ff_id']=data['variable'].apply(lambda a: ff_id[meta_data['2_forcefield'][props.index([a])]])
+        data.drop('variable',1,inplace=True)
+        to_drop = []
+        id = tuple(data['molecule_id'])
+        print(data)
+        cur.execute('select * from Value where molecule_id in {}'.format(str(id)))
+        vals = cur.fetchall()
+        vals = [list(x) for x in vals]
+        vals = pd.DataFrame(vals, columns=['id','value','model_id', 'property_id','molecule_id', 'functional_id','basis_id','ff_id'])
+        check_data = data.drop('value',1)
+        vals = vals[check_data.columns]
+        vals = [list(vals.loc[x]) for x in range(len(vals))]
+        for i in range(len(data)):
+            if list(check_data.loc[i]) in vals:
+                to_drop.append(i)
+        data.drop(to_drop,0,inplace=True)
+        if len(data) == 0:
+            return render_templat('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicate entries for all molecules exist.')
+        else:
+            cur.executemany('INSERT INTO Value(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
+        con.commit()
+        db = db.replace('_chembddb','')
+        db = db.replace('_',' ')
+
+        if to_drop!=[]:
+            all_dbs.append(db)
+            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
+        else:
+            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
     else:
         # default landing page
-        return render_template('insert.html',all_dbs=all_dbs)
-    
-    #cur.execute('USE INFORMATION_SCHEMA')
-    #result=cur.execute('SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=\'%s\''%db)
-    #if result == 0:
-    #    error_message='Database does not exist'
-    #    if host == '':
-    #        # for UI
-    #        return render_template('insert.html',all_dbs=all_dbs,err_msg=error_message)
-    #    else:
-    #        # for python module
-    #        return 'Failed! Database does not exists.'
-    
-        # sanity check for files
-    if type(conf_file) is str and conf_file=='':
-        # code block being executed on UI action
-        files=request.files
-        files=files.to_dict(flat=False)
-        conf_file=files['config_file'][0]
-        data_file=files['data_file'][0]
-        smi_col=config_options['smiles'][0]
-        mol_identifier=config_options['molecule_identifier'][0]
-        if conf_file.filename=='' or conf_file.filename.rsplit('.',1)[1]!='csv':
-            db.replace('_chembddb','')
-            db=db.replace('_',' ')
-            if host == '':
-                return render_template('insert.html',all_dbs=all_dbs,title=db,err_msg='No config file provided or incorrect file format. (csv required)')
-            else:
-                return 'Failed to insert all data! No config file provided or incorrect file format. (csv required)'
-        elif data_file.filename=='' or data_file.filename.rsplit('.',1)[1]!='csv':
-            db.replace('_chembddb','')
-            db=db.replace('_',' ')
-            if host == '':
-                return render_template('insert.html',title=db,err_msg='No data file provided or incorrect file format. (csv required)')
-            else:
-                return 'Failed to insert all data! No data file provided or incorrect file format. (csv required)'
-        elif smi_col=='' and mol_identifier=='':
-            db.replace('_chembddb','')
-            db=db.replace('_',' ')
-            if host == '':
-                return render_template('insert.html',title=db,err_msg='No molecule identifiers provided.')
-            else:
-                return 'No molecule identifiers provided'
-        conf=pd.read_csv(conf_file)
-        data=pd.read_csv(data_file)
-
-    elif type(conf_file) is str and conf_file!='':
-        # executed from python module call
-        if os.path.exists(conf_file) == False:
-            return 'Failed! Config file does not exist in the path specified'
-        if os.path.exists(data_file) == False:
-            return 'Failed! Data file does not exist in the path specified.'
-
-        conf=pd.read_csv(conf_file)
-        data=pd.read_csv(data_file)
-    else:
-        conf = conf_file    
-        data = data_file
-
-    conf.replace(np.nan,'na',inplace=True)
-    all_prop=True
-    all_mols=True
-    for prop in conf['properties']:
-        if prop not in data.columns:
-            all_prop=False
-    if all_prop==False:
-        db=db.replace('_',' ')
-        if host=='':
-            # UI
-            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Property(s) in config file do not exist in data.')
-        else:
-            # python module
-            return 'Failed! Property(s) in config file do not exist in data.'
-    else:
-        if smi_col!='' and smi_col not in data.columns:
-            all_mols=False
-        if mol_identifier!='' and mol_identifier not in data.columns:
-            all_mols=False
-        if all_mols==False:
-            if host=='':
-                db=db.replace('_chembddb','')
-                db=db.replace('_',' ')
-                return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Identifier(s) listed do not exist in data.')
-            else:
-                return 'Failed! Identifier(s) listed do not exist in data.'
-        else:
-            # if all info is correctly provided this code will be executed
-            cur.execute('USE %s;'%db)
-            db = db.replace('_chembddb','')
-            # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method for that property, if it does not exist, fetch the last id and create a new entry
-            # populating and property table
-            entered_list=[]
-            cur.execute("SELECT Property_str from Property")
-            properties = cur.fetchall()
-            for prop, units in zip(conf['properties'],conf['units']):
-                if any(prop in i for i in properties) or prop in entered_list:
-                    pass
-                else:
-                    entered_list.append(prop)
-                    # TODO: try insert if does not exist using the SQL command
-                    cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
-
-            # populating the model table
-            cur.execute("SELECT Method_name from Model")
-            models = cur.fetchall()
-            entered_list=[]
-            for method in conf['methods']:
-                if any(method in i for i in models) or method in entered_list:
-                    pass
-                else:
-                    entered_list.append(method)
-                    cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
-
-            # populating the functional table
-            cur.execute("SELECT name FROM Functional")
-            functionals = cur.fetchall()
-            entered_list = []
-            for func in conf['functional']:
-                if any(func in i for i in functionals) or func in entered_list:
-                    pass
-                else:
-                    entered_list.append(func)
-                    cur.execute("INSERT INTO Functional(name) VALUES(%s)",[func])
-
-            # populating the basis_set table
-            cur.execute("SELECT name FROM Basis_set")
-            basis_sets = cur.fetchall()
-            entered_list = []
-            for basis in conf['basis']:
-                if any(basis in i for i in basis_sets) or basis in entered_list:
-                    pass
-                else:
-                    entered_list.append(basis)
-                    cur.execute("INSERT INTO Basis_set(name) VALUES(%s)",[basis])
-
-
-            # populating the forcefield table
-            cur.execute("SELECT name FROM Forcefield")
-            forcefields = cur.fetchall()
-            entered_list = []
-            for ff in conf['forcefield']:
-                if any(ff in i for i in forcefields) or ff in entered_list or ff=='None':
-                    pass
-                else:
-                    entered_list.append(basis)
-                    cur.execute("INSERT INTO Forcefield(name) VALUES(%s)",[ff])
-
-            # populating the molecule table
-            cur.execute("SELECT SMILES_str,Molecule_identifier,MW from Molecule")
-            molecules = cur.fetchall()
-            new_entries=[]
-            # check last id for molecule, add molecule index, melt dataframe, add property and method index using lambda and dictionary
-            # check for molecule identifier (name, IUPAC, )
-            
-            for mol in range(len(data)):
-                if smi_col=='':
-                    if data.loc[mol][mol_identifier] not in new_entries:
-                        new_entries.append(('None',data.loc[mol][mol_identifier],'None'))
-                elif mol_identifier=='':
-                    if data.loc[mol][smi_col] not in new_entries:
-                        try:
-                            m = pybel.readstring("smiles",data.loc[mol][smi_col])
-                            smiles = m.write('can').strip()
-                            mw = m.molwt
-                            mw = round(mw,3)
-                        except:
-                            db=db.replace('_',' ')
-                            if host!='':
-                                return 'Failed, Invalid SMILES at position %d.'%str(mol)
-                            else:
-                                return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
-                        new_entries.append((smiles,'None',mw))
-                else:
-                    try:
-                        m = pybel.readstring("smiles",data.loc[mol][smi_col])
-                        smiles = m.write('can').strip()
-                        mw = m.molwt
-                        mw = round(mw,3)
-                    except:
-                        db=db.replace('_',' ')
-                        if host!='':
-                            return 'Failed, Invalid SMILES at position %d.'%str(mol)
-                        else:
-                            return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Invalid SMILES at position %d.'%str(mol))
-                    new_entries.append((smiles,data.loc[mol][mol_identifier],mw))
-
-            # temporary fix to enable for case-insensitivity in molecule-identifier
-            molecules = [list(x) for x in molecules]
-            new_entries = [list(x) for x in new_entries]
-            for i in molecules:
-                i[1] = i[1].lower()
-            for i in new_entries:
-                i[1] = i[1].lower()
-            molecules = tuple(tuple(x) for x in molecules)
-            new_entries = tuple(tuple(x) for x in new_entries)
-            required_entries = list(set(new_entries) - set(molecules))
-            cur.executemany('INSERT INTO Molecule(SMILES_str,Molecule_identifier,MW) VALUE(%s,%s,%s)',required_entries)
-
-            # populating the credit table
-            # todo: figure out how to deal with the credit/publication
-            # cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
-            cols=list(conf.properties)
-            if smi_col!='':
-                cols.append(smi_col)
-            if mol_identifier!='':
-                cols.append(mol_identifier)
-            data = data[cols]
-            # populating the values table
-
-            cur.execute('SELECT id,Property_str from Property')
-            all_props = cur.fetchall()
-            prop_id = dict(map(reversed,all_props))
-            cur.execute('SELECT id,Method_name from Model')
-            all_models = cur.fetchall()
-            model_id = dict(map(reversed,all_models))
-            cur.execute('SELECT id,name from Functional')
-            all_functionals = cur.fetchall()
-            functional_id=dict(map(reversed,all_functionals))
-            cur.execute('SELECT id,name from  Basis_set')
-            all_basis = cur.fetchall()
-            basis_id = dict(map(reversed,all_basis))
-            cur.execute('SELECT id,name from Forcefield')
-            all_ff = cur.fetchall()
-            ff_id = dict(map(reversed,all_ff))
-            if smi_col=='':
-                cur.execute("SELECT id,Molecule_identifier from Molecule") 
-                all_mols = cur.fetchall()
-                molecule_id = dict(map(reversed,all_mols))
-                data['molecule_id']=data[mol_identifier].apply(lambda a: molecule_id[a])
-            else:
-                cur.execute("SELECT id,SMILES_str from Molecule")
-                all_mols = cur.fetchall()
-                molecule_id = dict(map(reversed,all_mols))
-                data['molecule_id']=data[smi_col].apply(lambda a: molecule_id[pybel.readstring('smi',a).write('can').strip()])
-            
-            molecule_id = dict(map(reversed,all_mols))
-            if mol_identifier!='':
-                data.drop(mol_identifier,1,inplace=True)
-            if smi_col!='':
-                data.drop(smi_col,1,inplace=True)
-            data = data.melt('molecule_id')
-            data['property_id']=data['variable'].apply(lambda a: prop_id[a])
-            data['model_id']=data['variable'].apply(lambda a: model_id[conf.loc[conf['properties'].tolist().index(a)]['methods']])
-            data['functional_id']=data['variable'].apply(lambda a: functional_id[conf.loc[conf['properties'].tolist().index(a)]['functional']])
-            data['basis_id']=data['variable'].apply(lambda a: basis_id[conf.loc[conf['properties'].tolist().index(a)]['basis']])
-            data['ff_id']=data['variable'].apply(lambda a: ff_id[conf.loc[conf['properties'].tolist().index(a)]['forcefield']])
-            data.drop('variable',1,inplace=True)
-            to_drop = []
-            id = tuple(data['molecule_id'])
-            cur.execute('select * from Value where molecule_id in {}'.format(str(id)))
-            vals = cur.fetchall()
-            vals = [list(x) for x in vals]
-            vals = pd.DataFrame(vals, columns=['id','value','model_id', 'property_id','molecule_id', 'functional_id','basis_id','ff_id'])
-            check_data = data.drop('value',1)
-            vals = vals[check_data.columns]
-            vals = [list(vals.loc[x]) for x in range(len(vals))]
-            for i in range(len(data)):
-                if list(check_data.loc[i]) in vals:
-                    to_drop.append(i)
-            data.drop(to_drop,0,inplace=True)
-
-            if len(data) == 0:
-                if host=='':
-                    return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicates entries for all molecules exist.')
-                else:
-                    return 'Failed! Duplicate entries for all molecules exist.'
-            else:
-                cur.executemany('INSERT INTO Value(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
-                con.commit()
-                db=db.replace('_chembddb','')
-                db=db.replace('_',' ')
-                if host=='':
-                    if to_drop != []:
-                        all_dbs.append(db)
-                        return render_template('insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
-                    else:
-                        return render_template('insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
-                else:
-                    if to_drop != []:
-                        return 'A few molecules were not entered due to duplicate entries but the database was successfully populated with the rest'
-                    else:
-                        return 'Successfully entered the data into the database'
+        return render_template('temp_insert.html',all_dbs=all_dbs)
 
 @app.route('/search',methods=['GET','POST'])
 def search():
@@ -595,12 +549,14 @@ def search_db(db):
             p.append(list(pr))
         properties = p
         if len(keys)>0:
-            sql='select value.molecule_id,molecule.SMILES_str,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
+            sql='select value.molecule_id,molecule.SMILES,model.method_name,functional.name,basis_set.name,forcefield.name,Property.Property_str, value.num_value from molecule inner join Value on molecule.id=value.molecule_id inner join property on property.id=value.property_id inner join model on model.id=value.model_id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id = value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where '
+            print(from_form)
             for k in keys:
                 prop_id=int(from_form[k][0])
                 props.append(prop_id)
                 from_val=float(from_form[k[:-3]+'_from_val'][0])
                 to_val=float(from_form[k[:-3]+'_to_val'][0])
+                print(prop_id)
                 properties[prop_id-1].append(from_val)
                 properties[prop_id-1].append(to_val)
                 if from_val > to_val:
@@ -617,7 +573,7 @@ def search_db(db):
             valsid = valsid +')'
             sql = sql +valsid
         else:
-            sql = 'select id, SMILES_str, MW from Molecule where '
+            sql = 'select id, SMILES, MW from Molecule where '
         MW_to = None
         if 'MW' in from_form:
             from_val=float(from_form['MW_from_val'][0])
@@ -629,11 +585,11 @@ def search_db(db):
             if len(keys)!=0:
                 sql=sql+" and molecule.MW > {} and molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
             else:
-                sql="select id,SMILES_str,MW from Molecule where Molecule.MW > {} and Molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
+                sql="select id,SMILES,MW from Molecule where Molecule.MW > {} and Molecule.MW < {} ".format(float(from_form['MW_from_val'][0]),float(from_form['MW_to_val'][0]))
                 keys.append('MW')
         if 'smiles_search' in from_form:
             if len(keys)==0:
-                sql = 'select id, SMILES_str from Molecule'
+                sql = 'select id, SMILES from Molecule'
 
         if 'method' in from_form:
             met_id=0
@@ -1020,33 +976,39 @@ def molecule(dbid):
     db=dbid.split('-')[0]
     db=db.replace(' ','_')
     id=dbid.split('-')[1]
-    sql = 'SELECT Molecule.id, Molecule.MW, Molecule.SMILES_str,Molecule.Molecule_identifier,Property.Property_str, Property.Unit, Model.method_name,  Functional.name, Basis_set.name,forcefield.name, Value.num_value from Molecule inner join value on Molecule.id=Value.Molecule_id inner join Property on Property.id=VALUE.property_id INNER JOIN Model on Value.model_id=Model.id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id=value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where Molecule.id={}'.format(id)
+    sql = 'SELECT Molecule.id, Molecule.MW, Molecule.SMILES,Molecule.Standard_Inchi,Molecule.Standard_Inchi_Key,CAS_Registry_Number,IUPAC_Name,Other_name,Chemical_Formula,Property.Property_str, Property.Unit, Model.method_name,  Functional.name, Basis_set.name,forcefield.name, Value.num_value from Molecule inner join value on Molecule.id=Value.Molecule_id inner join Property on Property.id=VALUE.property_id INNER JOIN Model on Value.model_id=Model.id inner join functional on functional.id=value.functional_id inner join basis_set on basis_set.id=value.basis_id inner join forcefield on forcefield.id=value.forcefield_id where Molecule.id={}'.format(id)
     db=db+'_chembddb'
     cur.execute('USE {};'.format(db))
     cur.execute(sql)
     result=cur.fetchall()
-    mol_data=pd.DataFrame(list(result),columns=['ID','MW','SMILES','Identifier','Property','Unit','Method','Functional','Basis_set','Forcefield','Value'])
-    mol_data['ALL']=mol_data['ID'].astype(str) +',;'+mol_data['MW'].astype(str)+',;'+mol_data['SMILES']+',;'+mol_data['Identifier']
+    mol_data=pd.DataFrame(list(result),columns=['ID','MW','SMILES','Standard_Inchi','Standard_Inchi_Key','CAS_Registry_Number','IUPAC_Name','Other_name','Chemical_Formula','Property','Unit','Method','Functional','Basis_set','Forcefield','Value'])
+    mol_data['ALL']=mol_data['ID'].astype(str) +',;'+mol_data['MW'].astype(str)+',;'+mol_data['SMILES']+',;'+mol_data['Standard_Inchi']+',;'+mol_data['Standard_Inchi_Key']+',;'+mol_data['CAS_Registry_Number']+',;'+mol_data['IUPAC_Name']+',;'+mol_data['Other_name']+',;'+mol_data['Chemical_Formula']
+
     mol_data['Property(Unit)']=mol_data['Property']+' ('+mol_data['Unit']+')\n'+'- '+mol_data['Method']+'('+mol_data['Functional']+'/'+mol_data['Basis_set']+')('+mol_data['Forcefield']+')'
     mol_data=mol_data[['ALL','Property(Unit)','Value']]
     mol_data=mol_data.pivot(index='ALL',columns='Property(Unit)')
     mol_data=mol_data['Value'].reset_index()
-    mol_data[['ID','MW','SMILES','Identifier']]=mol_data['ALL'].str.split(',;',expand=True)
-    url_smi = urllib.parse.quote_plus(mol_data['SMILES'][0])
-
+    mol_data[['ID','MW','SMILES','Standard_Inchi','Standard_Inchi_Key','CAS_Registry_Number','IUPAC_Name','Other_name','Chemical_Formula']]=mol_data['ALL'].str.split(',;',expand=True)
+    #print(url_smi)
+    #print(mol_data['SMILES'][0])
     # converting smiles to chemspider ID NOTE: use this for other mol identifiers
     
     #url = "http://cactus.nci.nih.gov/chemical/structure/{}/chemspider_id".format(mol_data['SMILES'][0])
     #print(url)
 
-    cols=['ID','MW','SMILES','Identifier']
-    for i in mol_data.columns[1:-4]:
+    cols=['ID','MW','SMILES','Standard_Inchi','Standard_Inchi_Key','CAS_Registry_Number','IUPAC_Name','Other_name','Chemical_Formula']
+    for i in mol_data.columns[1:-9]:
         cols.append(i)
     mol_data=mol_data[cols]
     msg = ''
 
+    mol_data,added = molidentfiers.populate_molidentifiers(mol_data)
+    mol_data = mol_data.replace('NONE',np.nan)
+    mol_data.dropna(axis=1,inplace=True)
 
-    mol_ob = pybel.readstring("smi",mol_data['SMILES'][0])
+    url_smi = urllib.parse.quote_plus(mol_data['SMILES'][0])
+    smi = str(mol_data.loc[0]['SMILES'])
+    mol_ob = pybel.readstring("smi",smi)
     mymol = pybel.readstring("smi", mol_ob.write("can"))
     mymol.make3D(forcefield='mmff94', steps=50)
     mymol.write('xyz',app.config['UPLOAD FOLDER']+'/chembddb_{}.xyz'.format(mol_data['ID'][0]),overwrite=True)
@@ -1054,6 +1016,32 @@ def molecule(dbid):
         xyz = f.read()
         mol_data['XYZ'] = xyz
 
+    added = list(set(added).intersection(set(mol_data.columns)))
+    button = []
+    for i in range(len(mol_data.columns)):
+        if mol_data.columns[i] in added:
+            button.append('True')
+        else:
+            button.append('')
+    button = pd.Series(button,index=mol_data.columns,name=1)
+    mol_data = mol_data.append(button)
+    cols = mol_data.columns[:-1]
+    if request.method == 'POST' and 'addtodb' in request.form:
+        print('here')
+        print(request.form['addtodb'])
+        identifier = request.form['addtodb'].split(',')[0]
+        value = request.form['addtodb'][len(identifier)+1:]
+        if 'InChI=' in value:
+            value = value[6:]
+        print(value)
+        print(identifier)
+        q = 'Update Molecule set {}="{}" where id={};'.format(identifier,value,id)
+        print(q)
+        cur.execute(q)
+        con.commit()
+        print('done')
+        mol_data[identifier][1] = ''
+    #ids = molidentifiers()
     if request.method == 'POST' and 'Download' in request.form:
         mol_data.to_json('molecule.json')
         msg = 'Downloaded molecule.json'
@@ -1146,7 +1134,7 @@ def delete(host='',user='',pw='',db=''):
                     smi_obj = pybel.readstring('smi',smi)
                     can_smi = smi_obj.write('can').strip()
                     mol_wt = round(smi_obj.molwt,3)
-                    cur.execute('select id,SMILES_str,MW from Molecule where SMILES_str=\'{0}\' and (MW-{1}) < 0.00001;'.format(can_smi,mol_wt))
+                    cur.execute('select id,SMILES,MW from Molecule where SMILES=\'{0}\' and (MW-{1}) < 0.00001;'.format(can_smi,mol_wt))
                     to_delete=list(cur.fetchall())
                     sql = 'delete from Value where molecule_id={};'.format(to_delete[0][0])
                     cur.execute(sql)

@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 from copy import deepcopy
 from chembddb import molidentfiers
+import json
 
 try:
     import pybel
@@ -169,7 +170,7 @@ def setup(host=-1,user='',pw='',db=''):
         cur.execute('CREATE TABLE `%s`.`Forcefield`(`id` INT NOT NULL AUTO_INCREMENT,`name` VARCHAR(100) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
         # cur.execute('CREATE TABLE `%s`.`Topology`(`id` INT NOT NULL AUTO_INCREMENT,`geometry` VARCHAR(100) NOT NULL,`symbols` VARCHAR(100),`method` VARCHAR(100),`steps` INT,PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Value`(`id` INT NOT NULL AUTO_INCREMENT,`num_value` FLOAT NOT NULL,`model_id` INT NOT NULL,`property_id` INT NOT NULL,`molecule_id` INT NOT NULL,`functional_id` INT, `basis_id` INT,`forcefield_id` INT,PRIMARY KEY (`id`));'%db)
-
+        cur.execute('CREATE TABLE `%s`.`Configuration`(`id` INT DEFAULT 0,`conf` VARCHAR(200) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
         cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk0` FOREIGN KEY (`model_id`) REFERENCES `Model`(`id`) on DELETE CASCADE;'%db)
         cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk1` FOREIGN KEY (`property_id`) REFERENCES `Property`(`id`) on DELETE CASCADE;'%db)
         cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk2` FOREIGN KEY (`molecule_id`) REFERENCES `Molecule`(`id`) on DELETE CASCADE;'%db)
@@ -209,7 +210,7 @@ def temp_insert():
             m=i[0]
             all_dbs.append((m[:-9],))
 
-    if request.method=='POST' and 'config' not in request.form and 'meta-data' not in request.form:
+    if request.method=='POST' and 'config' not in request.form and 'meta-data' not in request.form and 'download-submit' not in request.form and 'use-config' not in request.form:
         # for UI with only the data file
         config_options=request.form
         config_options=config_options.to_dict(flat=False)
@@ -217,6 +218,16 @@ def temp_insert():
         db = db+'_chembddb'
         files = request.files
         #files = files.to_dict(flat=False)
+        cur.execute('USE {};'.format(db))
+        cur.execute('SELECT * from Configuration')
+        confs = cur.fetchall()
+        print(confs)
+        conf = False
+        if len(confs) > 0:
+            #confs = confs[0][1].split(',')
+            #confs = [confs[:7],confs[7:]]
+            conf = True
+        print(confs)
         data_file = files['data_file']
         print(data_file.filename)
         if data_file.filename.rsplit('.',1)[1]!='csv':
@@ -225,13 +236,14 @@ def temp_insert():
             return render_template('temp_insert.html',all_dbs = all_dbs,title=db,err_msg='No data file provided or incorrect file format. (csv required)')
         else:
             data = pd.read_csv(data_file)
-            return render_template('temp_insert.html',all_dbs=all_dbs,data_validated=True,cols = list(data.columns))
+            return render_template('temp_insert.html',all_dbs=all_dbs,data_validated=True,cols = list(data.columns),conf=conf)
 
-    elif request.method == 'POST' and 'config' in request.form:
+    elif request.method == 'POST' and ('config' in request.form or 'use-config' in request.form):
         #print(data.head())
         config_options = request.form
         config_options=config_options.to_dict(flat=False)
         print(config_options)
+            
         # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method for that property, if it does not exist, fetch the last id and create a new entry
         # populating and property table
         molecule_identifiers_cols = [] 
@@ -251,29 +263,58 @@ def temp_insert():
         for i in range(len(molecule_identifiers)):
             mol_ids[molecule_identifiers[i]] = molecule_identifiers_cols[i]
 
-        return render_template('temp_insert.html',props =remaining_cols, prop_length = len(remaining_cols), all_dbs=all_dbs, title=db,success_msg='successful')
+        if 'use-config' in config_options:
+            #df = pd.read_csv(app.config['UPLOAD FOLDER']+'/'+db[:-9]+'_config.csv')
+            #print(df)
+            cur.execute('USE {};'.format(db))
+            cur.execute('SELECT * from Configuration')
+            confs = cur.fetchall()
+            confs = confs[0][1].split(',')
+            confs = [confs[:6],confs[6:]]
+            print(confs)
+            properties = []
+            units = []
+            methods = []
+            functional = []
+            basis = []
+            forcefield = []
+            for i in confs:
+                properties.append(i[0])
+                units.append(i[1])
+                methods.append(i[2])
+                functional.append(i[3])
+                basis.append(i[4])
+                forcefield.append(i[5])
+            return render_template('temp_insert.html',all_dbs=all_dbs,conf_flag=True, l=len(properties), properties=properties,props = remaining_cols,prop_length=len(remaining_cols),title=db, units=units,methods = methods, functional = functional, basis = basis, forcefield = forcefield)
+        else:
+            return render_template('temp_insert.html',props =remaining_cols, prop_length = len(remaining_cols), all_dbs=all_dbs, title=db)
 
-    elif request.method == 'POST' and 'meta-data' in request.form:
+    elif request.method == 'POST' and ('meta-data' in request.form or 'download-submit' in request.form):
+
         meta_data = request.form
-        print(meta_data)
         meta_data = meta_data.to_dict(flat=False)
         props = []
+        print(meta_data)
+
         for k in meta_data.keys():
-            if 'hidden_prop_id' in k:
-                props.append(meta_data[k])
-        
+            if 'prop_id' in k:
+                props.append(meta_data[k][0])
+        print(meta_data[k])
         print(props)
         cur.execute('Use {};'.format(db))
         # fetching properties from the table and checking them against the entered properties from the insert page. If they are not already existing in the table, insert them. 
         entered_list=[]
         cur.execute("SELECT Property_str from Property")
         properties = cur.fetchall()
+        print(properties)
+
         for prop, units in zip(props,meta_data['2_unit']):
             if any(prop in i for i in properties) or prop in entered_list:
                 pass
             else:
                 entered_list.append(prop)
                 # TODO: try insert if does not exist using the SQL command
+                print(entered_list)
                 cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
         print('entered property')
         # populating the model table
@@ -399,7 +440,7 @@ def temp_insert():
         ## todo: figure out how to deal with the credit/publication
         ## cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
         print(list(mol_ids.values()))
-        cols=[i[0] for i in props]
+        cols=[i for i in props]
         for i in list(mol_ids.values()):
             cols.append(i)
         print(cols)
@@ -441,11 +482,11 @@ def temp_insert():
         print(data.head())
         print(props)
         print(model_id[meta_data['2_method'][props.index(props[0])]])
-        data['model_id']=data['variable'].apply(lambda a: model_id[meta_data['2_method'][props.index([a])]])
+        data['model_id']=data['variable'].apply(lambda a: model_id[meta_data['2_method'][props.index(a)]])
         print(data)
-        data['functional_id']=data['variable'].apply(lambda a: functional_id[meta_data['2_functional'][props.index([a])]])
-        data['basis_id']=data['variable'].apply(lambda a: basis_id[meta_data['2_basis'][props.index([a])]])
-        data['ff_id']=data['variable'].apply(lambda a: ff_id[meta_data['2_forcefield'][props.index([a])]])
+        data['functional_id']=data['variable'].apply(lambda a: functional_id[meta_data['2_functional'][props.index(a)]])
+        data['basis_id']=data['variable'].apply(lambda a: basis_id[meta_data['2_basis'][props.index(a)]])
+        data['ff_id']=data['variable'].apply(lambda a: ff_id[meta_data['2_forcefield'][props.index(a)]])
         data.drop('variable',1,inplace=True)
         to_drop = []
         id = tuple(data['molecule_id'])
@@ -462,13 +503,24 @@ def temp_insert():
                 to_drop.append(i)
         data.drop(to_drop,0,inplace=True)
         if len(data) == 0:
-            return render_templat('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicate entries for all molecules exist.')
+            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicate entries for all molecules exist.')
         else:
             cur.executemany('INSERT INTO Value(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
-        con.commit()
         db = db.replace('_chembddb','')
         db = db.replace('_',' ')
-
+        if 'download-submit' in meta_data:
+            df = pd.DataFrame()
+            df['Properties'] = [i[0] for i in props]
+            df['Units'] = meta_data['2_unit']
+            df['Method'] = meta_data['2_method']
+            df['Functional'] = meta_data['2_functional']
+            df['Basis_set'] = meta_data['2_basis']
+            df['Forcefield'] = meta_data['2_forcefield']
+            df['conf'] = df[df.columns].apply(lambda x: ','.join(x), axis = 1)
+            confs = ','.join(r for r in df['conf'])
+            print(confs)
+            cur.execute('INSERT INTO Configuration(ID, conf) VALUES(%s,%s)',[str(0),confs])
+        con.commit()
         if to_drop!=[]:
             all_dbs.append(db)
             return render_template('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
@@ -476,7 +528,7 @@ def temp_insert():
             return render_template('temp_insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
     else:
         # default landing page
-        return render_template('temp_insert.html',all_dbs=all_dbs)
+        return render_template('temp_insert.html',all_dbs=all_dbs,init='True')
 
 @app.route('/search',methods=['GET','POST'])
 def search():

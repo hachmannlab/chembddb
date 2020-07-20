@@ -11,49 +11,49 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/styles/styles.css">
 <script>
+ $(function () {
+        $('[data-toggle="tooltip"]').tooltip()
+      })
+//function disableselect(n){
+//console.log('here')
+//var val = ''
+//allprevselected = []
+//var changedID = $(n).attr("id"); //Save id of select that was changed...
+//var selectedValue = $(n).val(); //Save value of select was changed...
+//console.log(selectedValue)
+//console.log(changedID)
+////selectedIdentifiers.push(selectedValue)
+//if($(n).val() != "cols_0") { //If we did not select the first value...
+//    $('select.properties').each(function() { //Loop all existing selects
+//      //printing previously selected value 
+//      if($(n).attr("id") != changedID){
+//      allprevselected.push($(n).val())
+//      console.log($(n).val())
+//      }
+//    });
 
-function disableselect(n){
-
-
-console.log('here')
-var val = ''
-allprevselected = []
-var changedID = $(n).attr("id"); //Save id of select that was changed...
-var selectedValue = $(n).val(); //Save value of select was changed...
-console.log(selectedValue)
-console.log(changedID)
-//selectedIdentifiers.push(selectedValue)
-if($(n).val() != "cols_0") { //If we did not select the first value...
-    $('select.properties').each(function() { //Loop all existing selects
-      //printing previously selected value 
-      if($(n).attr("id") != changedID){
-      allprevselected.push($(n).val())
-      console.log($(n).val())
-      }
-    });
-
-    $('select.properties').each(function() {
-      if($(n).attr("id") == changedID){
-        $("#" + $(n).attr("id") + " option").each(function() {
-          if(allprevselected.includes($(n).attr("value"))) {
-              val = $(n).attr("value")
-              console.log(val)
-              $(n).prop("disabled", true); //Disable this one
-          }
+//    $('select.properties').each(function() {
+//      if($(n).attr("id") == changedID){
+//        $("#" + $(n).attr("id") + " option").each(function() {
+//          if(allprevselected.includes($(n).attr("value"))) {
+//              val = $(n).attr("value")
+//              console.log(val)
+//              $(n).prop("disabled", true); //Disable this one
+//          }
         
-        });
-      }
-    });
+//        });
+//      }
+//    });
     
-};
-var str = ''
-console.log(val)
-str+='<input type="hidden" name =hidden_'+ $(n).attr("name") + ' value=' + val +'>'
-$('#md').append(str);
-//n.disabled = true
+//};
+//var str = ''
+//console.log(val)
+//str+='<input type="hidden" name =hidden_'+ $(n).attr("name") + ' value=' + val +'>'
+//$('#md').append(str);
+////n.disabled = true
 
 
-}
+//}
 
 function removeRow(n){
   var tr = n.parentNode.parentNode;
@@ -63,10 +63,12 @@ function removeRow(n){
 function addRow(n){
   console.log('adding row')
   console.log(n)
+  allprevselected = []
   var id = n + 1
   $('select.properties').each(function() { //Loop all existing selects
           //printing previously selected value 
           allprevselected.push($(this).val())
+          console.log('logging inside ad rows')
           console.log($(this).val())
         });
   console.log(allprevselected)
@@ -99,7 +101,7 @@ function addRow(n){
   str = str + '<td> <input name="2_functional" type="text" value="na"></td>'
   str = str + '<td> <input name="2_basis" type="text" value="na"></td>'
   str = str + '<td> <input name="2_forcefield" type="text" value="na"></td>'
-  str = str + '<td> <input id=add_'+id+' name="addrow" class="addbutton" type="button" onclick="addRow('+id+')" value="Add Row" disabled></td>'
+  str = str + '<td> <input id=add_'+id+' name="addrow" class="addbutton" type="button" onclick="addRow('+id+')" value="Add Row" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" disabled></td>'
   //str = str + '<td> <input id=remove_'+id+' name="removerow" class="removebutton" type="button" onclick="removeRow(this)" value="Remove Row"></td>'
   $('#md').append(str)
   console.log(id)
@@ -281,9 +283,9 @@ $("#md").on('change','select',function () {
                   </ul>
                 </div>
               </nav>
-
              <div class='insert'>
               <h3 style = "font-family:Exo;">Insert</h3>
+              {% if init %}
               <form name='insert_data_config' enctype=multipart/form-data method='POST'>
                   <div class="form-group">
                     <table class="table table-bordered" border="0" style="align-content:center;font-family: Exo;">
@@ -314,9 +316,11 @@ $("#md").on('change','select',function () {
                     </table>
                     </div>
               </form>
+              {% endif %}
               <form id = "config" name="config" action="" method="POST">
               {% if data_validated %}
-              <h4 style = "font-family:Exo;">Molecule Identifiers</h4>
+              <h4 style = "font-family:Exo;">Step 1: Molecule Identifiers</h4>
+              <h5 style = "font-family:Exo;">Select columns from your file which represent molecule identifiers</h5>
                 <table class="table table-bordered" border="0" style="align-content:center;font-family:Exo;">
                 <col width="240">
                 <col width="240">
@@ -337,12 +341,13 @@ $("#md").on('change','select',function () {
      
                 {% endfor %}
                 <tr>
-                  <!--<td></td>-->
+                  <td></td>
                   <td>
-                    <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset Selection</button>
-                  </td>
-                  <td>
-                    <button type='submit' name='config' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Submit </button>
+                    <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset</button>
+                    <button type='submit' name='config' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Proceed to Step 2: Meta Data </button>
+                    {% if conf %}
+                    <button type='submit' name='use-config' method='POST' class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:EXO;">Use last configuration for step 2</button>
+                  {% endif %}
                    </td>
                 </tr>
             </table>
@@ -389,6 +394,7 @@ $("#md").on('change','select',function () {
 
                </tr>
                     </table>-->
+
             </form>
 
               <!--<form name='insert_meta_data' enctype=multipart/form-data method='POST'>
@@ -417,7 +423,8 @@ $("#md").on('change','select',function () {
 
             {% if props %}
             <form name='meta-data' id='meta-data' method='POST'>
-              <h4 style = "font-family:Exo;">Meta data</h4>
+              <h4 style = "font-family:Exo;">Step 2: Meta data</h4>
+              <h5 style = "font-family:Exo;">Select columns from your file which represent the properties you want to enter into the database and enter the meta data</h5>
               <table id="md" class="table table-bordered" border="0" style="align-content:center;font-family:Exo;">
                 <col width="240">
                 <col width="240">
@@ -446,6 +453,51 @@ $("#md").on('change','select',function () {
                   <td></td>
 
                 </tr>
+                {% if conf_flag %}
+                {% for i in range(l) %}
+                <tr>
+                  <td>
+                    <select id="0" class=properties name= "prop_id_0">
+                      <!--<option id="prop1" value="{{properties[i]}}" selected>{{properties[i]}}</option>-->
+                      {% for prop in props %}
+                      {% if prop == properties[i]%}
+                      <option id="cols_{{prop}}" name = "cols_{{prop}}" value="{{prop}}" selected> {{prop}} </option>
+                      {% else %}
+                          <option id="cols_{{prop}}" name = "cols_{{prop}}" value="{{prop}}"> {{prop}} </option>
+                      {% endif %}
+                      {% endfor %}
+
+                  </select>
+                  </td>
+                  <td>
+                    <input name="2_unit" type="text" value="{{units[i]}}">
+                  </td>
+                  <td>
+                    <input name="2_method" type="text" value="{{methods[i]}}">
+                  </td>
+                  <td>
+                    <input name="2_functional" type="text" value="{{functional[i]}}">
+
+                  </td>
+                  <td>
+                    <input name="2_basis" type="text" value="{{basis[i]}}">
+                  </td>
+                  <td> 
+                    <input name="2_forcefield" type="text" value="{{forcefield[i]}}">
+                  </td>
+                  {% if i+1==l %}
+                  <td>
+                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Add Row">
+                  </td>
+                  {% else %}
+                  <td>
+                    <input id="remove_0" name="removeRow" class="removebutton" type="button" onclick="removeRow(this)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Remove Row">
+                  </td>
+                  {% endif %}
+
+                </tr>
+                {% endfor %}
+                {% else %}
                 <tr>
                   <td>
                   <select id="0" class=properties name= "prop_id_0">
@@ -472,13 +524,15 @@ $("#md").on('change','select',function () {
                     <input name="2_forcefield" type="text" value="na">
                   </td>
                   <td>
-                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" value="Add Row">
+                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Add Row">
                   </td>
                 </tr>
-
+                {% endif %}
               </table>
               <button type='submit' name='meta-data' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Submit </button>
-              <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset Selection</button>
+              <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset</button>
+              <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="Save this configuration of meta data in case you want to use it again while entering fresh data values for these properties to this database">
+              <button type="submit" name='download-submit' method = 'POST' class='btn btn-primary' style="background-color:#005bbb;color:#ffffff;font-family:Exo;"><i class="glyphicon glyphicon-info-sign"></i>&nbsp Save configuration & submit</button></span>
             </form>
             {% endif %}
 

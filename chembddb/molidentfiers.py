@@ -7,6 +7,10 @@ try:
 except:
     from openbabel import pybel
 
+# to use unverified ssl you can add this to your code
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 def populate_molidentifiers(df):
     """ Function to fetch the following molecule identifiers for input molecules from public sources (currently uses only https://cactus.nci.nih.gov/chemical/structure?identifier=&representation=names):
 
@@ -60,6 +64,8 @@ def populate_molidentifiers(df):
                     new_url = url + identifier_dict[mol]
                 try:
                     added.append(mol)
+                    print(added)
+                    print(url)
                     ans = urlopen(new_url).read().decode('utf8')
                     df[mol][0] = ans
                 except HTTPError:

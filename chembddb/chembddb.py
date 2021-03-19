@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 from copy import deepcopy
 from chembddb import molidentfiers
+from chembddb.units import insert_unit_list,fetch_unit_list, create_unit_list, unit_converter
 import json
 
 try:
@@ -97,7 +98,7 @@ def connect():
     cur: cursor object
         pointer to the MySQL database; used to execute all SQL queries
     """ 
-    global cur,all_dbs
+    global cur,all_dbs, unit_list,con
     if request.method=='POST':
         cred=request.form
         cred = cred.to_dict(flat=False)
@@ -105,6 +106,12 @@ def connect():
         if cur == 'invalid' and all_dbs == 'credentials':
             return render_template('connect.html',err_msg='Invalid Credentials. Did not connect to MySQL')
         else:
+            print(all_dbs)
+            if any('unit_list' in i for i in all_dbs):
+                all_dbs.pop(all_dbs.index(('unit_list',)))
+                unit_list = fetch_unit_list(cur)
+            else:
+                unit_list = create_unit_list(cur,con)
             return render_template('connect.html',success_msg='Connection Established',host=cred['host'][0],user=cred['username'][0],password=cred['password'][0],all_dbs=all_dbs)
     else:
         return render_template('connect.html')
@@ -144,16 +151,17 @@ def setup(host=-1,user='',pw='',db=''):
         cur.execute('show databases;')
         all_dbs_tup=cur.fetchall()
         for i in all_dbs_tup:
-            if '_chembddb' in i[0]:
+            if '_chembddb' in i[0] and 'unit_list' not in i[0]:
                 m=i[0]
                 all_dbs.append((m[:-9],))
+
         return render_template('setup.html',all_dbs=all_dbs)
 
     all_dbs=[]
     cur.execute('show databases;')
     all_dbs_tup=cur.fetchall()
     for i in all_dbs_tup:
-        if '_chembddb' in i[0]:
+        if '_chembddb' in i[0] and 'unit_list' not in i[0]:
             m=i[0]
             all_dbs.append((m[:-9],))
     cur.execute('USE INFORMATION_SCHEMA')
@@ -170,7 +178,7 @@ def setup(host=-1,user='',pw='',db=''):
         cur.execute('CREATE TABLE `%s`.`Forcefield`(`id` INT NOT NULL AUTO_INCREMENT,`name` VARCHAR(100) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
         # cur.execute('CREATE TABLE `%s`.`Topology`(`id` INT NOT NULL AUTO_INCREMENT,`geometry` VARCHAR(100) NOT NULL,`symbols` VARCHAR(100),`method` VARCHAR(100),`steps` INT,PRIMARY KEY (`id`));'%db)
         cur.execute('CREATE TABLE `%s`.`Value`(`id` INT NOT NULL AUTO_INCREMENT,`num_value` FLOAT NOT NULL,`model_id` INT NOT NULL,`property_id` INT NOT NULL,`molecule_id` INT NOT NULL,`functional_id` INT, `basis_id` INT,`forcefield_id` INT,PRIMARY KEY (`id`));'%db)
-        cur.execute('CREATE TABLE `%s`.`Configuration`(`id` INT DEFAULT 0,`conf` VARCHAR(200) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
+        cur.execute('CREATE TABLE `%s`.`Configuration`(`id` INT DEFAULT 0,`conf` VARCHAR(200) DEFAULT \'NONE\',`unit_dict` VARCHAR(500) DEFAULT \'NONE\',PRIMARY KEY (`id`));'%db)
         cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk0` FOREIGN KEY (`model_id`) REFERENCES `Model`(`id`) on DELETE CASCADE;'%db)
         cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk1` FOREIGN KEY (`property_id`) REFERENCES `Property`(`id`) on DELETE CASCADE;'%db)
         cur.execute('ALTER TABLE `%s`.`Value` ADD CONSTRAINT `Value_fk2` FOREIGN KEY (`molecule_id`) REFERENCES `Molecule`(`id`) on DELETE CASCADE;'%db)
@@ -181,7 +189,7 @@ def setup(host=-1,user='',pw='',db=''):
         all_dbs_tup=cur.fetchall()
         all_dbs=[]
         for i in all_dbs_tup:
-            if '_chembddb' in i[0]:
+            if '_chembddb' in i[0] and 'unit_list' not in i[0]:
                 m=i[0]
                 all_dbs.append((m[:-9],))
         if host == -1:
@@ -200,17 +208,17 @@ def setup(host=-1,user='',pw='',db=''):
 
 @app.route('/temp_insert',methods=['GET','POST'])
 def temp_insert():
-    global all_dbs, cur, data,db, mol_ids, con
+    global all_dbs, cur, data,db, mol_ids, con, snapshot, props, prop_names, unit_list, prop_type
     mi_cols=[]
     cur.execute('show databases;') 
     all_dbs_tup=cur.fetchall()
     all_dbs=[]
     for i in all_dbs_tup:
-        if '_chembddb' in i[0]:
+        if '_chembddb' in i[0] and 'unit_list' not in i[0]:
             m=i[0]
             all_dbs.append((m[:-9],))
-
-    if request.method=='POST' and 'config' not in request.form and 'meta-data' not in request.form and 'download-submit' not in request.form and 'use-config' not in request.form:
+    #print(request.form)
+    if request.method=='POST' and 'upload_data' in request.form:
         # for UI with only the data file
         config_options=request.form
         config_options=config_options.to_dict(flat=False)
@@ -219,15 +227,83 @@ def temp_insert():
         files = request.files
         #files = files.to_dict(flat=False)
         cur.execute('USE {};'.format(db))
-        cur.execute('SELECT * from Configuration')
+        cur.execute('SELECT ID,conf from Configuration')
         confs = cur.fetchall()
-        print(confs)
         conf = False
         if len(confs) > 0:
             #confs = confs[0][1].split(',')
             #confs = [confs[:7],confs[7:]]
             conf = True
-        print(confs)
+        present = []
+        identifiers = ['SMILES','Standard_Inchi_Key','Standard_Inchi','Chemical_Formula','IUPAC_Name','Other_name','CAS_Registry_Number']
+        # to check which identifiers have entries in the database against them. The default value is 'NONE' so COUNT(DISTINCT) will give us number of unique entries for a particular column. If they are greater than 1 then the column has atleast one entry
+        snapshot = []
+        # IF SOMEONE MAKES A MISTAKE AND ADDS ONLY PROPERTY AND META DATA AND FORGETS TO ADD THE MOLECULES, THIS WILL NOT WORK.
+        for id in identifiers:
+            cur.execute('SELECT COUNT(DISTINCT '+ id +') FROM MOLECULE;')
+            counts = cur.fetchall()
+            #print(counts)
+            if counts[0][0] > 1:
+                present.append(id)
+            # TODO: if value is not default and count is 1 then append to present
+        if present !=[]:
+            snapshot = [', '.join(p for p in present)]
+            snapshot = [snapshot[0].split(',')]
+            # check which properties are present in the database
+
+            cur.execute('SELECT Property_str, Unit from Property;')
+            properties = cur.fetchall()
+            properties = ', '.join(i[0]+'('+i[1]+')' for i in properties)
+            properties.replace(', na','')
+            properties.replace('na,','')
+            properties.replace('na','')
+            
+            properties = properties.split(',')
+            snapshot.append(properties)
+
+            cur.execute('SELECT method_name from Model;')
+            methods = cur.fetchall()
+            methods = ', '.join(i[0] for i in methods)
+            methods = methods.replace(', na','')
+            methods = methods.replace('na,','')
+            methods = methods.replace('na','')
+
+            methods = methods.split(',')
+            snapshot.append(methods)
+
+            cur.execute('SELECT name FROM Functional;')
+            functionals = cur.fetchall()
+            functionals = ', '.join(i[0] for i in functionals)
+            functionals = functionals.replace(', na','')
+            functionals = functionals.replace('na,','')
+            functionals = functionals.replace('na','')
+            
+            functionals = functionals.split(',')
+            snapshot.append(functionals)
+
+            cur.execute('SELECT name FROM Basis_set;')
+            basis = cur.fetchall()
+            basis = ', '.join(i[0] for i in basis)
+            basis = basis.replace(', na','')
+            basis = basis.replace('na,','')
+            basis = basis.replace('na','')
+            
+            basis = basis.split(',')
+            snapshot.append(basis)
+
+            cur.execute('SELECT name FROM Forcefield')
+            forcefield = cur.fetchall()
+            forcefield = ', '.join(i[0] for i in forcefield)
+            forcefield = forcefield.replace(', na','')
+            forcefield = forcefield.replace('na,','')
+            forcefield = forcefield.replace('na','')
+            forcefield = forcefield.replace(' ','')
+
+            forcefield = forcefield.split(',')
+            snapshot.append(forcefield)
+        else:
+            snapshot = False
+        #print(snapshot)
         data_file = files['data_file']
         print(data_file.filename)
         if data_file.filename.rsplit('.',1)[1]!='csv':
@@ -236,7 +312,13 @@ def temp_insert():
             return render_template('temp_insert.html',all_dbs = all_dbs,title=db,err_msg='No data file provided or incorrect file format. (csv required)')
         else:
             data = pd.read_csv(data_file)
-            return render_template('temp_insert.html',all_dbs=all_dbs,data_validated=True,cols = list(data.columns),conf=conf)
+            cols = []
+            for i in data.columns:
+                cols.append(i.replace(' ','_'))
+            print(data.columns)
+            print(i)
+            data.columns = cols
+            return render_template('temp_insert.html',all_dbs=all_dbs,data_validated=True,cols = list(data.columns),conf=conf,snapshot=snapshot,snapshot_cols = ['Molecule Identifiers','Properties (Units)','Methods','Functionals','Basis Sets','Forcefields'])
 
     elif request.method == 'POST' and ('config' in request.form or 'use-config' in request.form):
         #print(data.head())
@@ -244,7 +326,7 @@ def temp_insert():
         config_options=config_options.to_dict(flat=False)
         print(config_options)
             
-        # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method for that property, if it does not exist, fetch the last id and create a new entry
+        # loop throught he CSV file, check if the smiles value is in the table, if yes, fetch the corresponding id, same goes for property, same goes for method, if it does not exist, fetch the last id and create a new entry
         # populating and property table
         molecule_identifiers_cols = [] 
         molecule_identifiers = []
@@ -285,89 +367,326 @@ def temp_insert():
                 functional.append(i[3])
                 basis.append(i[4])
                 forcefield.append(i[5])
-            return render_template('temp_insert.html',all_dbs=all_dbs,conf_flag=True, l=len(properties), properties=properties,props = remaining_cols,prop_length=len(remaining_cols),title=db, units=units,methods = methods, functional = functional, basis = basis, forcefield = forcefield)
+            return render_template('temp_insert.html',all_dbs=all_dbs,conf_flag=True, l=len(properties), snapshot=snapshot,snapshot_cols=['Molecule Identifiers','Properties (Units)','Methods','Functionals','Basis Sets','Forcefields'],properties=properties,props = remaining_cols,prop_length=len(remaining_cols),title=db, unit=units,methods = methods, functional = functional, basis = basis, forcefield = forcefield)
         else:
-            return render_template('temp_insert.html',props =remaining_cols, prop_length = len(remaining_cols), all_dbs=all_dbs, title=db)
+            return render_template('temp_insert.html',props =remaining_cols, prop_length = len(remaining_cols), all_dbs=all_dbs, title=db,snapshot=snapshot,snapshot_cols = ['Molecule Identifiers','Properties (Units)','Methods','Functionals','Basis Sets','Forcefields'])
 
     elif request.method == 'POST' and ('meta-data' in request.form or 'download-submit' in request.form):
-
         meta_data = request.form
         meta_data = meta_data.to_dict(flat=False)
         props = []
         print(meta_data)
 
         for k in meta_data.keys():
-            if 'prop_id' in k:
+            if 'prop_id' in k and 'type' not in k:
                 props.append(meta_data[k][0])
-        print(meta_data[k])
+
         print(props)
+        try:
+            prop_type = meta_data['hidden_prop_id_type']
+        except:
+            prop_type = meta_data['prop_type_0']
+        prop_names = meta_data['2_prop']
+        print(prop_names)
+        l = unit_list
+        units = []
+        for n in range(len(prop_names)):
+            if prop_names[n].lower() in l.keys():
+                units.append(list(l[prop_names[n].lower()].keys()))
+            elif prop_type[n] == 'sol':
+                units.append(list(l['solubility parameters'].keys()))
+            elif prop_type[n] == 'energy':
+                units.append(list(l['energy'].keys()))
+            elif prop_type[n] == 'ratio':
+                units.append(list(l['ratio'].keys()))
+            else:
+                units.append([''])
+        to_drop=[]
+        #print(units)
+        return render_template('temp_insert.html',properties=prop_names,prop_length = len(prop_names),units = True, unit_list=units,title=db,all_dbs=all_dbs,snapshot=snapshot,snapshot_cols=['Molecule Identifiers','Properties (Units)','Methods','Functionals','Basis Sets','Forcefields'])
+    
+    elif request.method == 'POST' and 'meta-unit' in request.form:
+        final_md = request.form
+        final_md = final_md.to_dict(flat=False)
+        print(unit_list)
+        print(final_md)
+        print(db)
+        print(snapshot)
+        print(mol_ids)
+        print(data.columns)
+        print(prop_names)
+        print(props)
+        unit_flag=False
+        to_drop=[]
+        units_from_ui = final_md['unit_id_0']
         cur.execute('Use {};'.format(db))
-        # fetching properties from the table and checking them against the entered properties from the insert page. If they are not already existing in the table, insert them. 
-        entered_list=[]
-        cur.execute("SELECT Property_str from Property")
-        properties = cur.fetchall()
-        print(properties)
-
-        for prop, units in zip(props,meta_data['2_unit']):
-            if any(prop in i for i in properties) or prop in entered_list:
-                pass
-            else:
-                entered_list.append(prop)
-                # TODO: try insert if does not exist using the SQL command
-                print(entered_list)
-                cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
-        print('entered property')
+        #for md in final_md.keys():
+        #    if 'unit_id' in md:
+        #        if '(default)' in final_md[md]:
+        #            unit_list.append(final_md[md][:-len('(default)')])
+        #        else:
+        #            unit_list.append(fi)
+        
+        #for p in range(len(prop_names)):
+        #    if prop_names[p]+'('+final_md['unit']
+        ## fetching properties from the table and checking them against the entered properties from the insert page. If they are not already existing in the table, insert them. 
+        #entered_list=[]
+        #cur.execute("SELECT Property_str from Property")
+        #properties = cur.fetchall()
+        #print(properties)
+        #for prop, units in zip(props,meta_data['2_unit']):
+        #    if any(prop in i for i in properties) or prop in entered_list:
+        #        pass
+        #    else:
+        #        entered_list.append(prop)
+        #        # TODO: try insert if does not exist using the SQL command
+        #        print(entered_list)
+        #        cur.execute("INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)",[prop,units])
+        #print('entered property')
         # populating the model table
-        cur.execute("SELECT Method_name from Model")
-        models = cur.fetchall()
-        entered_list=[]
-        for method in meta_data['2_method']:
-            if any(method in i for i in models) or method in entered_list:
-                pass
-            else:
-                entered_list.append(method)
-                cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
+        #entered_list=[]
+        #for method in meta_data['2_method']:
+        #    if any(method in i for i in models) or method in entered_list:
+        #        pass
+        #    else:
+        #        entered_list.append(method)
+        #        cur.execute("INSERT INTO Model(Method_name) VALUES(%s)",[method])
+        #entered_list = []
+        #for i in range(len(prop_names)):
+        #    if '(default)' in final_md['2_unit'][i]:
+        #        print(final_md['2_unit'][:-10])
+        #        prop_unit = prop_names[i] + '('final_md['2_unit'][:-10]')'
+        #        print(prop_unit)
+        #        if prop_unit not in snapshot[1] and prop_unit not in entered_list:
+        #            cur.execute('INSERT INTO Property(Property_str, Unit) VALUES(%s,%s)',[prop_names[i],final_md['2_unit'][:-10]])
+        #            entered_list.append(prop_unit)
+        #    else:
+        #        if prop_names[i] in unit_list.keys():
+        #            prop_unit = prop_names[i]+'('unit_list[prop_names[i]][0]+')'
+        #            if prop_unit not in snapshot[1] and prop_unit not in entered_list:
+        #                cur.execute('INSERT INTO Property(Property_str, Unit) VALUE(%s,%s)',[prop_names[i],unit_list[prop_names[i]][0]])
+        #                entered_list.append(prop)
+        #        else:
+        #            # new unit
+        # IF ',' in the unit then the unit is new (not in the unit)
+        if snapshot!=False:
+            # DB is not empty (there are some properties in the db)
+            entered_list = []
+            p = [s.split('(')[0].strip() for s in snapshot[1]] # properties in the database
+            u = [s[s.index('('):s.index(')')] for s in snapshot[1]] # units in the database corresponding to that property
+            for i in range(len(prop_names)):
+                if (prop_names[i],units_from_ui[i]) not in entered_list:
+                    print(prop_names[i])
+                    print(unit_list.keys())
+                    if prop_names[i] not in unit_list.keys() and prop_type[i] not in ['sol','energy']: # If property is not in our list
+                        # creating unit entry for that property to add to our list and make that unit the default
+                        d = {}
+                        d[units_from_ui[i]+' (default)'] = 1.0
+                        unit_list[prop_names[i]] = d
+                        unit_flag=True
+                        cur.execute('INSERT INTO Property(Property_str, unit) VALUE(%s,%s);',[prop_names[i],units_from_ui[i]])
+                        # TODO: add to unit db and convert values
+                    else: # if we already have the property in our list (of units)
+                        if prop_names[i] not in p: # if the property is not in the database
+                            if '(default)' in units_from_ui[i]:
+                                u1 = units_from_ui[i]
+                                cur.execute('INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)',[prop_names[i],u1[:u1.index('(')-1]])
+                            else:
+                                if prop_type[i] == 'sol':
+                                    all_units = list(unit_list['solubility parameters'].keys())
+                                    def_unit = all_units[0]
+                                elif prop_type[i] == 'energy':
+                                    all_units = list(unit_list['energy'].keys())
+                                    def_units = all_units[0]
+                                else:
+                                    all_units = list(unit_list[prop_names[i]].keys())
+                                    def_unit = all_units[0] # fetching the default unit
 
-        print('entered method')
+                                if units_from_ui[i] not in all_units: # if we do not have this unit listed for the given property in our list
+                                    conv_factor = float(units_from_ui[i].split(',')[1])
+                                    units_from_ui[i] = units_from_ui[i].split(',')[0]
+                                    if prop_type[i] == 'sol':
+                                        unit_list['solubility parameters'][units_from_ui[i]] = conv_factor
+                                    elif prop_type[i] == 'energy':
+                                        unit_list['energy'][units_from_ui[i]] = conv_factor
+                                    else:
+                                        unit_list[prop_names[i]][units_from_ui[i]] = conv_factor
+                                    unit_flag=True
+                                else:
+                                    # TODO: convert
+                                    if prop_type[i] == 'sol':
+                                        conv_factor = unit_list['solubility parameters'][units_from_ui[i]]
+                                    elif prop_type[i] == 'energy':
+                                        conv_factor = unit_list['energy'][units_from_ui]
+                                    else:
+                                        conv_factor = unit_list[prop_names[i]][units_from_ui[i]]
+                                        
+                                data[props[i]] = data[props[i]] * conv_factor
+                                cur.execute('INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)',[prop_names[i],def_unit])
+                                print(def_unit)
+                        else: # If the property is already in the database
+                            if '(default)' not in units_from_ui[i]:
+                                def_unit = list(unit_list[prop_names[i]].keys())[0] 
+                                if units_from_ui[i] not in unit_list[prop_names[i]].keys():
+                                    unit_list[prop_names[i][units_from_ui]] = 12 # TODO: add conv factor
+                                else:
+                                    # TODO: convert
+                                    print('convert')
+
+                    entered_list.append((prop_names[i],units_from_ui[i]))
+
+
+
+
+            entered_list = []
+            print(snapshot[2])
+            m = [i.strip() for i in snapshot[2]]
+            snapshot[2] = m
+            print(final_md['2_method'])
+            print('\nmethod\n')
+            for method in final_md['2_method']:
+                if method not in snapshot[2] and method not in entered_list:
+                    cur.execute('INSERT INTO Model(Method_name) VALUES(%s)',[method])
+                    entered_list.append(method)
+            
+            entered_list = []
+            for func in final_md['2_functional']:
+                if func not in snapshot[3] and func not in entered_list:
+                    cur.execute('INSERT INTO Functional(name) VALUE(%s)',[func])
+                    entered_list.append(func)
+
+            entered_list = []
+            for basis in final_md['2_basis']:
+                if basis not in snapshot[4] and basis not in entered_list:
+                    cur.execute('INSERT INTO Basis_set(name) VALUE(%s)',[basis])
+                    entered_list.append(basis)
+
+            entered_list = []
+            for ff in final_md['2_forcefield']:
+                if ff not in snapshot[5] and ff not in entered_list:
+                    cur.execute('INSERT INTO Forcefield(name) VALUE(%s)',[ff])
+                    entered_list.append(ff)
+        else:
+            #units = [u[:u.index('(')-1]]
+            print('snapshot is false') # DB is empty; executed during first insert
+            entered_list = []
+            prop_names = [i.lower() for i in prop_names]
+            for i in range(len(prop_names)):
+                if (prop_names[i],units_from_ui[i]) not in entered_list:
+                    if prop_names[i].lower() in unit_list.keys() or prop_type[i] in ['sol','energy']: # If we have this property in our list
+                        entered_list.append((prop_names[i],units_from_ui[i]))
+                        if 'default' in units_from_ui[i]: # If the unit entered by the user is the default unit for this property in our list
+                            u = units_from_ui[i]
+                            cur.execute('INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)',[prop_names[i],u[:u.index('(')-1]])
+                        else: # if the unit entered by the user is not the default unit in our list
+                            if prop_type[i] == 'sol':
+                                all_units = list(unit_list['solubility parameters'].keys())
+                                def_unit = all_units[0]
+                            elif prop_type[i] == 'energy':
+                                all_units = list(unit_list['energy'].keys())
+                                def_unit = all_units[0]
+                            else:
+                                all_units = list(unit_list[prop_names[i]].keys())
+                                def_unit = all_units[0] # fetching the default unit
+                            #print(list(unit_list[prop_names[i]].keys()))
+                            if units_from_ui[i] not in all_units: # if we do not have this unit listed for the given property in our list
+                                conv_factor = float(units_from_ui[i].split(',')[1])
+                                units_from_ui[i] = units_from_ui[i].split(',')[0]
+                                if prop_type[i] == 'sol':
+                                    unit_list['solubility parameters'][units_from_ui[i]] = conv_factor
+                                elif prop_type[i] == 'energy':
+                                    unit_list['energy'][units_from_ui[i]] = conv_factor
+                                else:
+                                    unit_list[prop_names[i]][units_from_ui[i]] = conv_factor
+                                unit_flag=True
+                            else:
+                                if prop_type[i] == 'sol':
+                                    conv_factor = unit_list['solubility parameters'][units_from_ui[i]] 
+                                elif prop_type[i] == 'energy':
+                                    conv_factor = unit_list['energy'][units_from_ui[i]]
+                                else:
+                                    conv_factor = unit_list[prop_names[i]][units_from_ui[i]]
+
+                            data[props[i]] = data[props[i]] * conv_factor
+                            cur.execute('INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)',[prop_names[i],def_unit])
+                            print(def_unit)
+                            print(unit_list)
+                    else: # If the property is not in our list and it is not of the types energy or solubility parameters
+                        print(prop_names[i])
+                        conv_factor = float(units_from_ui[i].split(',')[1])
+                        units_from_ui[i] = units_from_ui[i].split(',')[0]
+                        unit_flag = True
+                        d = {}
+                        d[units_from_ui[i]+' (default)'] = 1.0
+                        unit_list[prop_names[i]] = d
+                        cur.execute('INSERT INTO Property(Property_str,Unit) VALUES(%s,%s)',[prop_names[i],units_from_ui[i]])
+                        # TODO: add property and unit to unit_list and insert into DB
+                    entered_list.append((prop_names[i],units_from_ui[i]))
+
+            entered_list = []
+            for method in final_md['2_method']:
+                if method not in entered_list:
+                    cur.execute('INSERT INTO Model(Method_name) VALUES(%s)',[method])
+                    entered_list.append(method)
+            
+            entered_list = []
+            for func in final_md['2_functional']:
+                if func not in entered_list:
+                    cur.execute('INSERT INTO Functional(name) VALUE(%s)',[func])
+                    entered_list.append(func)
+
+            entered_list = []
+            for basis in final_md['2_basis']:
+                if basis not in entered_list:
+                    cur.execute('INSERT INTO Basis_set(name) VALUE(%s)',[basis])
+                    entered_list.append(basis)
+
+            entered_list = []
+            for ff in final_md['2_forcefield']:
+                if ff not in entered_list:
+                    cur.execute('INSERT INTO Forcefield(name) VALUE(%s)',[ff])
+                    entered_list.append(ff)
+
         
-        # populating the functional table
-        cur.execute("SELECT name FROM Functional")
-        functionals = cur.fetchall()
-        entered_list = []
-        for func in meta_data['2_functional']:
-            if any(func in i for i in functionals) or func in entered_list:
-                pass
-            else:
-                entered_list.append(func)
-                cur.execute("INSERT INTO Functional(name) VALUES(%s)",[func])
+        ## populating the functional table
+        #cur.execute("SELECT name FROM Functional")
+        #functionals = cur.fetchall()
+        #entered_list = []
+        #for func in meta_data['2_functional']:
+        #    if any(func in i for i in functionals) or func in entered_list:
+        #        pass
+        #    else:
+        #        entered_list.append(func)
+        #        cur.execute("INSERT INTO Functional(name) VALUES(%s)",[func])
 
-        print('entered functional')
+        #print('entered functional')
 
-        # populating the basis set table
-        cur.execute("SELECT name FROM Basis_set")
-        basis_sets = cur.fetchall()
-        entered_list = []
-        for basis in meta_data['2_basis']:
-            if any(basis in i for i in basis_sets) or basis in entered_list:
-                pass
-            else:
-                entered_list.append(basis)
-                cur.execute("INSERT INTO Basis_set(name) VALUES(%s)",[basis])
+        ## populating the basis set table
+        #cur.execute("SELECT name FROM Basis_set")
+        #basis_sets = cur.fetchall()
+        #entered_list = []
+        #for basis in meta_data['2_basis']:
+        #    if any(basis in i for i in basis_sets) or basis in entered_list:
+        #        pass
+        #    else:
+        #        entered_list.append(basis)
+        #        cur.execute("INSERT INTO Basis_set(name) VALUES(%s)",[basis])
 
-        print('entered basis_set')
+        #print('entered basis_set')
 
-        # populating the forcefield table
-        cur.execute("SELECT name FROM Forcefield")
-        forcefields = cur.fetchall()
-        entered_list = []
-        for ff in meta_data['2_forcefield']:
-            if any(ff in i for i in forcefields) or ff in entered_list or ff=='None':
-                pass
-            else:
-                entered_list.append(basis)
-                cur.execute("INSERT INTO Forcefield(name) VALUES(%s)",[ff])
+        ## populating the forcefield table
+        #cur.execute("SELECT name FROM Forcefield")
+        #forcefields = cur.fetchall()
+        #entered_list = []
+        #for ff in meta_data['2_forcefield']:
+        #    if any(ff in i for i in forcefields) or ff in entered_list or ff=='None':
+        #        pass
+        #    else:
+        #        entered_list.append(basis)
+        #        cur.execute("INSERT INTO Forcefield(name) VALUES(%s)",[ff])
         
-        print('entered forcefield')
+        #print('entered forcefield')
+
         # populating the molecule table
 
         cur.execute("SELECT "+ ''.join(i.lower()+',' for i in mol_ids.keys())+"MW from Molecule")
@@ -377,7 +696,7 @@ def temp_insert():
         # check last id for molecule, add molecule index, melt dataframe, add property and method index using lambda and dictionary
         # check for molecule identifier (name, IUPAC, )
         pybel_identifiers = {'smiles':'smiles','standard_inchi_key':'inchikey','standard_inchi':'inchi'}
-        print(mol_ids)
+        #print(mol_ids)
         
         for mol in range(len(data)):
             mw_flag = False
@@ -386,7 +705,7 @@ def temp_insert():
                 if k.lower() in pybel_identifiers.keys():
                     try:
                         m = pybel.readstring(pybel_identifiers[k.lower()],data.loc[mol][v])
-                        if k == 'smiles':
+                        if k.lower() == 'smiles':
                             iden = m.write('can').strip()
                             if mw_flag == False:
                                 mw = m.molwt
@@ -400,7 +719,7 @@ def temp_insert():
                                 mw_flag = True
                     except:
                         db = db.replace('_',' ')
-                        return render_template('temp_insert',title=db,all_dbs = all_dbs, err_msg='Invalid SMILES on row number {}.'.format(str(mol)))
+                        return render_template('temp_insert.html',title=db,all_dbs = all_dbs, err_msg='Invalid SMILES on row number {}.'.format(str(mol)))
                     row.append(iden)
                 else:
                     row.append(data.loc[mol][v])
@@ -436,21 +755,21 @@ def temp_insert():
             vals = '%s,%s,'
         cur.executemany('INSERT INTO Molecule('+mol_q+'MW) VALUE('+vals[:-1]+')',required_entries)
         print('mol done')
-        ## populating the credit table
-        ## todo: figure out how to deal with the credit/publication
-        ## cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
-        print(list(mol_ids.values()))
+        ### populating the credit table
+        ### todo: figure out how to deal with the credit/publication
+        ### cur.execute('INSERT INTO %s.Credit(DOI) VALUES(%s)'%db,' ')
+        #print(list(mol_ids.values()))
         cols=[i for i in props]
         for i in list(mol_ids.values()):
             cols.append(i)
-        print(cols)
+
         data = data[cols]
-        #if smi_col!='':
-        #    cols.append(smi_col)
-        #if mol_identifier!='':
-        #    cols.append(mol_identifier)
-        #data = data[cols]
-        ## populating the values table
+        ##if smi_col!='':
+        ##    cols.append(smi_col)
+        ##if mol_identifier!='':
+        ##    cols.append(mol_identifier)
+        ##data = data[cols]
+        # populating the values table
 
         cur.execute('SELECT id,Property_str from Property')
         all_props = cur.fetchall()
@@ -471,26 +790,29 @@ def temp_insert():
         cur.execute("SELECT "+mol_q+" from Molecule")
         all_mols = cur.fetchall()
         molecule_id = dict(map(reversed,all_mols))
-        
-        #print(data[list(mol_ids.values())[0]])
+        #print(data.columns)
+        #print(molecule_id)
         data['molecule_id']=data[list(mol_ids.values())[0]].apply(lambda a: molecule_id[pybel.readstring('smi',a).write('can').strip()])
         #print(data)
         
         data.drop(mol_ids.values(),1,inplace=True)
         data = data.melt('molecule_id')
-        data['property_id']=data['variable'].apply(lambda a: prop_id[a])
-        print(data.head())
-        print(props)
-        print(model_id[meta_data['2_method'][props.index(props[0])]])
-        data['model_id']=data['variable'].apply(lambda a: model_id[meta_data['2_method'][props.index(a)]])
+        #print(prop_id)
+        #print(data)
+
+        data['property_id']=data['variable'].apply(lambda a: prop_id[prop_names[props.index(a)]]) #unable to recognize second column with same property name because it is using lambda to assign property ID
+        #print(data.head())
+        #print(props)
+        print(model_id[final_md['2_method'][props.index(props[0])]])
+        data['model_id']=data['variable'].apply(lambda a: model_id[final_md['2_method'][props.index(a)]])
         print(data)
-        data['functional_id']=data['variable'].apply(lambda a: functional_id[meta_data['2_functional'][props.index(a)]])
-        data['basis_id']=data['variable'].apply(lambda a: basis_id[meta_data['2_basis'][props.index(a)]])
-        data['ff_id']=data['variable'].apply(lambda a: ff_id[meta_data['2_forcefield'][props.index(a)]])
+        data['functional_id']=data['variable'].apply(lambda a: functional_id[final_md['2_functional'][props.index(a)]])
+        data['basis_id']=data['variable'].apply(lambda a: basis_id[final_md['2_basis'][props.index(a)]])
+        data['ff_id']=data['variable'].apply(lambda a: ff_id[final_md['2_forcefield'][props.index(a)]])
         data.drop('variable',1,inplace=True)
         to_drop = []
         id = tuple(data['molecule_id'])
-        print(data)
+        #print(data)
         cur.execute('select * from Value where molecule_id in {}'.format(str(id)))
         vals = cur.fetchall()
         vals = [list(x) for x in vals]
@@ -502,33 +824,38 @@ def temp_insert():
             if list(check_data.loc[i]) in vals:
                 to_drop.append(i)
         data.drop(to_drop,0,inplace=True)
+        #print(data)
         if len(data) == 0:
             return render_template('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='Duplicate entries for all molecules exist.')
         else:
             cur.executemany('INSERT INTO Value(molecule_id,num_value,property_id,model_id,functional_id,basis_id,forcefield_id) VALUES(%s,%s,%s,%s,%s,%s,%s)',data.values.tolist())
         db = db.replace('_chembddb','')
         db = db.replace('_',' ')
-        if 'download-submit' in meta_data:
+        if 'download-submit' in final_md:
             df = pd.DataFrame()
             df['Properties'] = [i[0] for i in props]
-            df['Units'] = meta_data['2_unit']
-            df['Method'] = meta_data['2_method']
-            df['Functional'] = meta_data['2_functional']
-            df['Basis_set'] = meta_data['2_basis']
-            df['Forcefield'] = meta_data['2_forcefield']
+            df['Units'] = final_md['2_unit']
+            df['Method'] = final_md['2_method']
+            df['Functional'] = final_md['2_functional']
+            df['Basis_set'] = final_md['2_basis']
+            df['Forcefield'] = final_md['2_forcefield']
             df['conf'] = df[df.columns].apply(lambda x: ','.join(x), axis = 1)
             confs = ','.join(r for r in df['conf'])
             print(confs)
             cur.execute('INSERT INTO Configuration(ID, conf) VALUES(%s,%s)',[str(0),confs])
+        if unit_flag == 'True':
+            cur.execute('USE unit_list_chembddb;')
+            cur.execute('INSERT INTO Main(id,unit_str) VALUE(1,%s);',[unit_list])
         con.commit()
         if to_drop!=[]:
             all_dbs.append(db)
-            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
+            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,init='True',err_msg='A few molecules were not entered due to duplicate entries',success_msg='The database has been successfully populated')
         else:
-            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,success_msg='The database has been successfully populated')
+            return render_template('temp_insert.html',title=db,all_dbs=all_dbs,init='True',success_msg='The database has been successfully populated')
+
     else:
         # default landing page
-        return render_template('temp_insert.html',all_dbs=all_dbs,init='True')
+        return render_template('temp_insert.html',all_dbs=all_dbs,init='True',snapshot='')
 
 @app.route('/search',methods=['GET','POST'])
 def search():
@@ -550,7 +877,7 @@ def search_db(db):
     all_dbs_tup=cur.fetchall()
     #print(all_dbs_tup)
     for i in all_dbs_tup:
-        if '_chembddb' in i[0]:
+        if '_chembddb' in i[0] and 'unit_list' not in i[0]:
             m=i[0]
             all_dbs.append((m[:-9],))
     db=db[1:-1]
@@ -1138,7 +1465,7 @@ def delete(host='',user='',pw='',db=''):
         all_dbs=[]
         all_dbs_tup=cur.fetchall()
         for i in all_dbs_tup:
-            if '_chembddb' in i[0]:
+            if '_chembddb' in i[0] and 'unit_list' not in i[0]:
                 m=i[0]
                 all_dbs.append((m[:-9],))
         details=request.form
@@ -1172,7 +1499,7 @@ def delete(host='',user='',pw='',db=''):
                 all_dbs_tup=cur.fetchall()
                 all_dbs=[]
                 for i in all_dbs_tup:
-                    if '_chembddb' in i[0]:
+                    if '_chembddb' in i[0] and 'unit_list' not in i[0]:
                         m=i[0]
                         all_dbs.append((m[:-9],))
                 #return render_template('delete.html',data=True,properties=properties,methods=methods,functionals=functionals,basis=basis_sets,forcefields=forcefields,all_dbs=all_dbs,success_msg='database {} deleted'.format(details['dbname']))
@@ -1246,6 +1573,18 @@ def delete(host='',user='',pw='',db=''):
         else:
             return render_template('delete.html',all_dbs=all_dbs)
 
+def backup_restore(host='',user='',pw='',db='',filename=''):
+    import subprocesses
+    if db !='':
+        pass
+    else:
+        try:
+            s= 'mysqldump -h localhost -P 3306 -u '+user+' -p'+pw+ ' '+db+' --single-transaction  > ' + filename
+            subprocesses.Popen(s,shell=True)
+            return 'done'
+        except:
+            return 'error'
+        
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD FOLDER'],filename)

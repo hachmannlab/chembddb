@@ -14,52 +14,38 @@
  $(function () {
         $('[data-toggle="tooltip"]').tooltip()
       })
-//function disableselect(n){
-//console.log('here')
-//var val = ''
-//allprevselected = []
-//var changedID = $(n).attr("id"); //Save id of select that was changed...
-//var selectedValue = $(n).val(); //Save value of select was changed...
-//console.log(selectedValue)
-//console.log(changedID)
-////selectedIdentifiers.push(selectedValue)
-//if($(n).val() != "cols_0") { //If we did not select the first value...
-//    $('select.properties').each(function() { //Loop all existing selects
-//      //printing previously selected value 
-//      if($(n).attr("id") != changedID){
-//      allprevselected.push($(n).val())
-//      console.log($(n).val())
-//      }
-//    });
 
-//    $('select.properties').each(function() {
-//      if($(n).attr("id") == changedID){
-//        $("#" + $(n).attr("id") + " option").each(function() {
-//          if(allprevselected.includes($(n).attr("value"))) {
-//              val = $(n).attr("value")
-//              console.log(val)
-//              $(n).prop("disabled", true); //Disable this one
-//          }
-        
-//        });
-//      }
-//    });
-    
-//};
-//var str = ''
-//console.log(val)
-//str+='<input type="hidden" name =hidden_'+ $(n).attr("name") + ' value=' + val +'>'
-//$('#md').append(str);
-////n.disabled = true
-
-
-//}
-
+function enterunit(n){
+  console.log($(n).val())
+  if($(n).val() == 'Other'){
+    id = $(n).attr('id');
+    id = id.slice(-1,);
+    now = '#centralModalSm_'+id;
+    console.log(now)
+    $(now).modal('show');
+  }
+}
+function setval(p){
+  //hide the modal on click of continue
+  mod = '#centralModalSm_'+p
+  $(mod).modal('hide');
+  console.log('setval')
+  console.log(p)
+  //get the value of user entered unit and conversion factor
+  newval = $(document.getElementById('new_unit_'+p)).val()
+  console.log(newval)
+  newconvertor = $(document.getElementById('conversion_factor_'+p)).val()
+  newstr = newval +','+newconvertor
+  console.log(newstr)
+  //replacing other column from dropdown to the user entered unit
+  $('#other_'+p).val(newstr).change()
+  $('#other_'+p).text(newval).change()
+}
 function removeRow(n){
+  console.log('here')
   var tr = n.parentNode.parentNode;
   tr.parentNode.removeChild(tr);
-};
-
+}
 function addRow(n){
   console.log('adding row')
   console.log(n)
@@ -81,14 +67,7 @@ function addRow(n){
   col_elems = col_elems.split(", ")
   console.log(col_elems)
   diff_cols = $(col_elems).not(allprevselected).get()
-  //var tr = n.parentNode.parentNode.cloneNode(true);
-  //var tab = document.getElementById('md');
-  //var new_row = tab.rows[1].cloneNode(true);
-  //var len = tab.rows.length;
-  //new_row.cells[0].innerHTML = len;
-  //console.log(len)
-  //var inp1 = new_row.cells[1].getElementsByTagName('input')[0];
-  //tab.appendChild(new_row);
+
   var str = '<tr><td> <select id='+id+' class=properties name="prop_id_' + id + '">'
   str = str + '<option id="cols_0" value="cols_0">Select column name</option>'
   var i;
@@ -96,11 +75,8 @@ function addRow(n){
     str = str + '<option id="cols_'+diff_cols[i]+'" name="cols_'+diff_cols[i]+'" value="'+diff_cols[i] +'">'+ diff_cols[i] +'</option>'
   }
   //str = str + '{% for prop in props %} <option id="cols_{{prop}}" name="cols_{{prop}}" value="{{prop}}">{{prop}} </option> {% endfor %} '
-  str = str + '</select></td><td> <input name="2_unit" type="text" value="na"> </td>'
-  str = str + '<td> <input name="2_method" type="text" value="na"> </td>'
-  str = str + '<td> <input name="2_functional" type="text" value="na"></td>'
-  str = str + '<td> <input name="2_basis" type="text" value="na"></td>'
-  str = str + '<td> <input name="2_forcefield" type="text" value="na"></td>'
+  str = str + '</select></td><td><input name="2_prop" type="text" value="na"></td>'
+  str = str + '<td><select id="type" class=prop_type name="prop_type_0"><option id="sel_0" value="select_type">Select if the property is of the following type</option><option id="energy" value="energy" >Energy</option><option id="sol" value="sol">Solubility Parameter</option></select></td>'
   str = str + '<td> <input id=add_'+id+' name="addrow" class="addbutton" type="button" onclick="addRow('+id+')" value="Add Row" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" disabled></td>'
   //str = str + '<td> <input id=remove_'+id+' name="removerow" class="removebutton" type="button" onclick="removeRow(this)" value="Remove Row"></td>'
   $('#md').append(str)
@@ -194,52 +170,6 @@ $("#md").on('change','select',function () {
     add = 'add_'+id
     document.getElementById(add).disabled=false
 })
-//this function gets called on select properties button on click
-//$('.property-dropdown').on('click',function(){
-//  //this finds the column header which are not selected in molecule identifier
-//  diff_cols = $(col_elems).not(selectedIdentifiers).get()
-//  //console.log(diff_cols)
-  
-//  //this removes the already exisiting UL tag(in order to override it everytimt)
-//  $( ".customUL" ).remove();
-  
-//  //create the custom HTML unordered list (ul) tag here
-//  var str = ''
-//  str += '<ul class="customUL dropdown-menu" style="margin-left:15px;">';
-
-//  //loop through the remaining column headers
-//  for(var i in diff_cols){
-//    str += '<li><a href="#" class="small" tabIndex="-1"><input type="checkbox" value="'+ diff_cols[i]+ '"name="property-checkbox"' +'/>&nbsp;'+diff_cols[i]+'</a></li>';
-//  }
-//  str += '</ul>';
-
-//  //append the html ul tag to the correct position (div)
-//  $('#property-dropdown-div').append(str);
-
-
-//});
-
-//var options = [];
-
-//$( '.dropdown-menu a' ).on( 'click', function( event ) {
-//   var $target = $( event.currentTarget ),
-//       val = $target.attr( 'data-value' ),
-//       $inp = $target.find( 'input' ),
-//       idx;
-
-//   if ( ( idx = options.indexOf( val ) ) > -1 ) {
-//      options.splice( idx, 1 );
-//      setTimeout( function() { $inp.prop( 'checked', false ) }, 0);
-//   } else {
-//      options.push( val );
-//      setTimeout( function() { $inp.prop( 'checked', true ) }, 0);
-//   }
-
-//   $( event.target ).blur();
-      
-//   console.log( options );
-//   return false;
-//});
 });
 
 </script>
@@ -286,41 +216,45 @@ $("#md").on('change','select',function () {
              <div class='insert'>
               <h3 style = "font-family:Exo;">Insert</h3>
               {% if init %}
-              <form name='insert_data_config' enctype=multipart/form-data method='POST'>
-                  <div class="form-group">
-                    <table class="table table-bordered" border="0" style="align-content:center;font-family: Exo;">
-                    <col width="240">
-                    <col width="240">
-                    <col width="240">
-                    <tr>
-                      <td>
-                        <label for="dbname" style="font-family:Exo;">Database name</label>
-                        <!-- <input type="text" name='dbname' class="form-control" id="dbname" style="font-family:Exo;" placeholder="Name"> -->
-                        <select name="dbname">
-                          {% for dbname in all_dbs %}
-                          <option id = "dbname" value='{{dbname[0]}}'>{{dbname[0]}}</option>
-                          {% endfor %}
-                      </select>
-                        <small id="smiles" class="form-text text-muted" style="font-family:Exo;">Enter the name of the database you want to insert to.</small>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <div class="form-group" style="font-family:Exo;">
-                          <label for="data_file_label">Data file (csv)</label>
-                          <input name='data_file' type="file" id="data_file">
-                        </div>
-                        <button type="submit" name="upload_data" value="Upload" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Upload</button>
-                      </td>
-                    </tr>
-                    </table>
-                    </div>
-              </form>
+                  <form name='insert_data_config' enctype=multipart/form-data method='POST'>
+                    <div class="form-group">
+                      <table class="table table-bordered" border="0" style="align-content:center;font-family: Exo;">
+                      <col width="240">
+                      <col width="240">
+                      <col width="240">
+                      <tr>
+                        <td>
+                          <label for="dbname" style="font-family:Exo;">Database name</label>
+                          <!-- <input type="text" name='dbname' class="form-control" id="dbname" style="font-family:Exo;" placeholder="Name"> -->
+                          <select name="dbname">
+                            {% for dbname in all_dbs %}
+                            <option id = "dbname" value='{{dbname[0]}}'>{{dbname[0]}}</option>
+                            {% endfor %}
+                        </select>
+                          <small id="smiles" class="form-text text-muted" style="font-family:Exo;">Enter the name of the database you want to insert to.</small>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="form-group" style="font-family:Exo;">
+                            <label for="data_file_label">Data file (csv)</label>
+                            <input name='data_file' type="file" id="data_file">
+                          </div>
+                          <button type="submit" name="upload_data" value="Upload" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Upload</button>
+                        </td>
+                      </tr>
+                      </table>
+                      </div>
+                </form>              
               {% endif %}
               <form id = "config" name="config" action="" method="POST">
               {% if data_validated %}
+
               <h4 style = "font-family:Exo;">Step 1: Molecule Identifiers</h4>
               <h5 style = "font-family:Exo;">Select columns from your file which represent molecule identifiers</h5>
+
+              <div class='row'>
+                <div class='col col-lg-6'>
                 <table class="table table-bordered" border="0" style="align-content:center;font-family:Exo;">
                 <col width="240">
                 <col width="240">
@@ -341,119 +275,83 @@ $("#md").on('change','select',function () {
      
                 {% endfor %}
                 <tr>
-                  <td></td>
-                  <td>
+                  <td colspan="2">
                     <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset</button>
-                    <button type='submit' name='config' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Proceed to Step 2: Meta Data </button>
+                    <button type='submit' name='config' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Proceed to Step 2: Properties </button>
                     {% if conf %}
                     <button type='submit' name='use-config' method='POST' class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:EXO;">Use last configuration for step 2</button>
                   {% endif %}
                    </td>
                 </tr>
             </table>
-
-                <!--<h4 style = "font-family:Exo;">Properties</h4>-->
-                <!--<table class="table table-bordered" border="0" style="align-content: center;font-family: Exo;">-->
-                        <!--<tr>
-                            <td>
-                                <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown">Select Properties from the list below</button>
-                                <ul class="dropdown-menu" style="margin-left: 60px;">
-                                    {% for c in cols %}
-                                  <li>
-                                      <a href="#" class="small" data-value="{{c}}">
-                                          <input type="checkbox"/>&nbsp;&nbsp;{{c}}
-                                        </a>
-                                </li>
-                                {% endfor %}
-                                </ul>                       
-                            </td>
-                        </tr>-->
-                        <!--<tr>-->
-                            <!--<td>-->
-                                <!--<div>-->
-                                  <!--<div class="row">-->
-                                       <!--<div class="col-lg-12">-->
-                                     <!--<div class="button-group" id='property-dropdown-div'>-->
-                                        <!--<button type="button" class="property-dropdown btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" >Select Properties from the list below</button>-->
-                       
-                                <!--<ul class="dropdown-menu" style="margin-left:15px;">
-                          
-                                    {% for c in cols %}
-                                  <li><a href="#" class="small" data-value="{{c}}" tabIndex="-1"><input type="checkbox"/>&nbsp;{{c}}</a></li>
-                                {% endfor %}
-                              
-                                </ul>-->
-                             
-                                  <!--</div>-->
-                                <!--</div>-->
-                                  <!--</div>-->
-                                <!--</div>-->
-                            <!--</td>-->
-                        <!--</tr>-->
-               <!--<tr>
-
-               </tr>
-                    </table>-->
-
             </form>
-
-              <!--<form name='insert_meta_data' enctype=multipart/form-data method='POST'>
-                    <div class="form-group">
-                      <label for="smiles" style="font-family:Exo;">SMILES</label>
-                      <input id='smiles_check' type='checkbox' name='smiles_check' value='yes' onclick="document.getElementById('smi').disabled=!this.checked">
-                      <input type="text" name='smiles' class="form-control" id="smi" style="font-family:Exo;" placeholder="SMILES" disabled>
-                      <small id="smiles" class="form-text text-muted" style="font-family:Exo;">Enter name/header of the smiles column in your data (csv) file.</small>
-                    </div>
-                      <div class="form-group">
-                        <label for="Username" style="font-family:Exo;">Molecule Identifier</label>
-                        <input type="text" name='molecule_identifier' class="form-control" id="molecule_identifier" style="font-family:Exo;" placeholder="molecule_identifier" >
-                        <small id="MIhelp" class="form-text text-muted" style="font-family:Exo;">Enter the name/header of any other molecule identifier in your data (csv) file.</small>
-                      </div>
-                    <div class="form-group" style="font-family:Exo;">
-                      <label for='config_file_label'>Enter the config file (csv). The property names should be the same as the column headers in your data (csv) file</label>
-                      <input name='config_file' type="file" id="config_file">
-                    </div>-->
-                    <!--<div class="form-group" style="font-family:Exo;">
-                      <label for="data_file_label">Data file (csv)</label>
-                      <input name='data_file' type="file" id="data_file">
-                    </div>
-                    <button type="submit" name="upload_data" value="Upload" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" >Upload</button>-->
-            <!--</form>-->
+          </div>
+          <div class='col col-lg-6'>
+            {% if snapshot != False %}
+            <table class='table table-bordered' border='0' style='align-content: center;font-family: Exo;table-layout: fixed; width:100%'>
+              <h4 class="text-center" style="font-family: Exo;" >List of molecule identifiers, properties, and method-related meta-data in your database at this moment</h4>
+              {% for i in range(6) %}
+              <tr>
+                {% if snapshot[i][0] != ''%}
+              <th>{{snapshot_cols[i]}}</th>
+              <td>
+              {% for j in snapshot[i] %}
+                  {{j}},
+              {% endfor %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+            </table>
+          </div>
+        </div>
             {% endif %}
-
+          {% endif %}
             {% if props %}
             <form name='meta-data' id='meta-data' method='POST'>
-              <h4 style = "font-family:Exo;">Step 2: Meta data</h4>
-              <h5 style = "font-family:Exo;">Select columns from your file which represent the properties you want to enter into the database and enter the meta data</h5>
+              <h4 style = "font-family:Exo;">Step 2: Properties</h4>
+              <h5 style = "font-family:Exo;">Select columns from your file which represent the properties you want to enter into the database</h5>
               <table id="md" class="table table-bordered" border="0" style="align-content:center;font-family:Exo;">
                 <col width="240">
                 <col width="240">
-                <col width="240">
-                <col width="240">
-                <col width="240">
+            {% if not conf_flag %}
                 <tr>
                   <td>
-                <h5 style = "font-family:Exo;">Property</h5>
+                  <h5 style = "font-family:Exo;">Column Name</h5>
                   </td>
                   <td>
-                    <h5 style = "font-family:Exo;">Unit</h5>
+                  <h5 style = "font-family:Exo;">Property Name</h5>
                   </td>
                   <td>
-                    <h5 style = "font-family:Exo;">Method</h5>
-                  </td>
-                  <td>
-                    <h5 style = "font-family:Exo;">Functional</h5>
-                  </td>
-                  <td>
-                    <h5 style = "font-family:Exo;">Basis Set</h5>
-                  </td>
-                  <td> 
-                    <h5 style = "font-family:Exo;">Forcefield</h5>
+                    <h5 style = "font-family:Exo;">Property Type</h5>
                   </td>
                   <td></td>
-
                 </tr>
-                {% if conf_flag %}
+                <tr>
+                  <td>
+                  <select id="0" class=properties name= "prop_id_0">
+                      <option id="cols_0" value="cols_0">Select column name</option>
+                      {% for prop in props %}
+                          <option id="cols_{{prop}}" name = "cols_{{prop}}" value="{{prop}}"> {{prop}} </option>
+                      {% endfor %}
+                  </select>
+                  </td>
+                  <td>
+                    <input name="2_prop" type="text" value="na" placeholder="na">
+                  </td>
+                  <td>
+                    <select id='type' class=prop_type name='prop_type_0'>
+                    <option id='sel_0' value='select_type'>Select if the property is of the following type</option>
+                    <option id='energy' value='energy' >Energy</option>
+                    <option id='sol' value='sol'>Solubility Parameter</option>
+                    <option id='ratio' value='ratio'>Ratio</option>
+                  </select>
+                  </td>
+                  <td>
+                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Add Row" disabled>
+                  </td>
+                </tr>
+            {% else %}
                 {% for i in range(l) %}
                 <tr>
                   <td>
@@ -470,72 +368,181 @@ $("#md").on('change','select',function () {
                   </select>
                   </td>
                   <td>
-                    <input name="2_unit" type="text" value="{{units[i]}}">
+                    <input name="2_prop" type="text" readonly="readonly" value={{properties[i]}}>
                   </td>
                   <td>
-                    <input name="2_method" type="text" value="{{methods[i]}}">
+                    <input name="2_unit" type="text" readonly="readonly" value="{{unit[i]}}">
                   </td>
                   <td>
-                    <input name="2_functional" type="text" value="{{functional[i]}}">
+                    <input name="2_method" type="text" readonly="readonly" value="{{methods[i]}}">
+                  </td>
+                  <td>
+                    <input name="2_functional" type="text" readonly="readonly" value="{{functional[i]}}">
 
                   </td>
                   <td>
-                    <input name="2_basis" type="text" value="{{basis[i]}}">
+                    <input name="2_basis" type="text" readonly="readonly" value="{{basis[i]}}">
                   </td>
                   <td> 
-                    <input name="2_forcefield" type="text" value="{{forcefield[i]}}">
+                    <input name="2_forcefield" type="text" readonly="readonly" value="{{forcefield[i]}}">
                   </td>
-                  {% if i+1==l %}
+                  <!--{% if i+1==l %}
                   <td>
-                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Add Row">
+                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"value="Add Row">
                   </td>
                   {% else %}
                   <td>
-                    <input id="remove_0" name="removeRow" class="removebutton" type="button" onclick="removeRow(this)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Remove Row">
+                    <input type="button" onclick="removeRow(this)" value="Remove Row" style="background-color:#005bbb;color:#ffffff;font-family:Exo;">
                   </td>
-                  {% endif %}
-
+                  {% endif %}-->
                 </tr>
                 {% endfor %}
-                {% else %}
+                <!-- conf -->
+                {% endif %}
+            </table>
+            <td colspan="3">
+              <button type='submit' name='meta-data' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Proceed to step 3: Meta Data </button>
+              <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset</button>
+              <!--<span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="Save this configuration of meta data in case you want to use it again while entering fresh data values for these properties to this database">-->
+              <!--<button type="submit" name='download-submit' method = 'POST' class='btn btn-primary' style="background-color:#005bbb;color:#ffffff;font-family:Exo;"><i class="glyphicon glyphicon-info-sign"></i>&nbsp Save configuration & submit</button></span>-->
+            </td>
+            </form>
+            <!-- prop -->
+            {% endif %} 
+            {% if units %}
+            <h4 style = "font-family:Exo;">Step 3: Meta Data</h4>
+            <h5 style = "font-family:Exo;">Enter the meta data and select the units that you are entering the properties in.</h5>
+            <form name="final_md" id = final_md method="POST">
+              <table class = 'table table-bordered' border='0' style='align-content: center; font-family: Exo;'>
+                <col width="240">
+                <col width="240">
+                <col width="240">
+                <col width="240">
+                <col width="240">
                 <tr>
                   <td>
-                  <select id="0" class=properties name= "prop_id_0">
-                      <option id="cols_0" value="cols_0">Select column name</option>
-                      {% for prop in props %}
-                          <option id="cols_{{prop}}" name = "cols_{{prop}}" value="{{prop}}"> {{prop}} </option>
-                      {% endfor %}
-                  </select>
+                  <h5 style = "font-family:Exo;">Property</h5>
                   </td>
                   <td>
-                    <input name="2_unit" type="text" value="na">
+                    <h5 style = "font-family:Exo;">Unit</h5>
                   </td>
                   <td>
-                    <input name="2_method" type="text" value="na">
+                    <h5 style = "font-family:Exo;">Method</h5>
                   </td>
                   <td>
-                    <input name="2_functional" type="text" value="na">
-
+                    <h5 style = "font-family:Exo;">Functional</h5>
                   </td>
                   <td>
-                    <input name="2_basis" type="text" value="na">
+                    <h5 style = "font-family:Exo;">Basis Set</h5>
                   </td>
                   <td> 
-                    <input name="2_forcefield" type="text" value="na">
-                  </td>
-                  <td>
-                    <input id="add_0" name="addrow" class="addbutton" type="button" onclick="addRow(0)" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" value="Add Row">
+                    <h5 style = "font-family:Exo;">Forcefield</h5>
                   </td>
                 </tr>
-                {% endif %}
+                  {% for p in range(prop_length) %}
+                <tr>
+                  <td>
+                    <input name="2_prop" type="text" value={{properties[p]}} disabled>
+                  </td>
+                  <td>
+                    
+                    <select id="unit_{{p}}" class=units name= "unit_id_0" onchange="enterunit(this)">
+                      {% if unit_list[p] == [''] %}
+                      <option id="select" name="select" value="select" > Click other to enter your unit</option>
+                      {% else %}
+                      {% for u in unit_list[p] %}
+                          <option id="cols_{{u}}" name = "cols_{{u}}" value="{{u}}"> {{u}} </option>
+                      {% endfor %}
+                      {% endif %}
+                      <option id='other_{{p}}' name='other' value="Other">Other</option>
+                  </select>
+                                                                    <!-- Central Modal Small -->
+                                                                    <div class="modal fade" id="centralModalSm_{{p}}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" data-backdrop ="static" data-keyboard="False" aria-hidden="true">
+                                                                      <div class="modal-dialog" role="document">
+                                                                        <!--Content-->
+                                                                        <div class="modal-content">
+                                                                          <!--Header-->
+                                                                          <div class="modal-header">
+                                                                            <h4 class="modal-title w-100" id="myModalLabel">Enter your unit and its conversion factor with {{u}}</h4>
+                                                                          </div>
+                                                                          <!--Body-->
+                                                                          <div class="modal-body">
+                                                                            <table class="table table-bordered" border='0' style='align-content: center; font-family: Exo;'>
+                                                                            <tr>
+                                                                              <th>
+                                                                                Unit Name
+                                                                              </th>
+                                                                              <th>
+                                                                                Conversion Factor with the default unit
+                                                                              </th>
+                                                                            </tr>
+                                                                            <td>
+                                                                              <input type="text" id="new_unit_{{p}}" placeholder="Enter new unit">
+                                                                            </td>
+                                                                            <td>
+                                                                              <input type="text" id="conversion_factor_{{p}}" placeholder="Enter conversion factor">
+                                                                            </td>
+                                                                            </table> 
+                                                                          </div>
+                                                                          <!--Footer-->
+                                                                          <div class="modal-footer">
+                                                                            <button type="button" name="unit-submitted" class="btn btn-primary btn-sm" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" 
+                                                                            onclick="setval({{p}})">Continue</button>
+                                                                          </div>
+                                                                        </div>
+                                                                        <!--/.Content-->
+                                                                      </div>
+                                                                    </div>
+                                                                    <!-- Central Modal Small -->
+                  </td>
+                  <td>
+                    <input name="2_method" type="text" value="na" placeholder="na">
+                  </td>
+                  <td>
+                    <input name="2_functional" type="text" value="na" placeholder="na">
+
+                  </td>
+                  <td>
+                    <input name="2_basis" type="text" value="na" placeholder="na">
+                  </td>
+                  <td> 
+                    <input name="2_forcefield" type="text" value="na" placeholder="na">
+                  </td>
+                </tr>
+                  {% endfor %}
+                <tr>
+                  <td colspan="6">
+                    <button type='submit' name='meta-unit' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Submit</button>
+                  </td>
+                </tr>
+              
               </table>
-              <button type='submit' name='meta-data' method='POST'class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;"> Submit </button>
-              <button type="button" class="btn btn-primary" style="background-color:#005bbb;color:#ffffff;font-family:Exo;" onClick="window.location.reload();" >Reset</button>
-              <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="Save this configuration of meta data in case you want to use it again while entering fresh data values for these properties to this database">
-              <button type="submit" name='download-submit' method = 'POST' class='btn btn-primary' style="background-color:#005bbb;color:#ffffff;font-family:Exo;"><i class="glyphicon glyphicon-info-sign"></i>&nbsp Save configuration & submit</button></span>
+
             </form>
             {% endif %}
+            {% if props or units%}
+            {% if snapshot != False %}
+            <table class='table table-bordered' border='0' style='align-content: center;font-family: Exo;'>
+              <col width="240">
+              <col width="240">
+              <col width="240">
+              <h4 class="text-center" style="font-family: Exo;" >List of molecule identifiers, properties, and method-related meta-data in your database at this moment</h4>
+              {% for i in range(6) %}
+              <tr>
+                {% if snapshot[i][0] != ''%}
+              <th>{{snapshot_cols[i]}}</th>
+              <td>
+              {% for j in snapshot[i] %}
+                  {{j}},
+              {% endfor %}
+              </td>
+              {% endif %}
+            </tr>
 
+              {% endfor %}
+            </table>
+            {% endif %}
+            {% endif %}
             {% if err_msg %}
             <div class="alert alert-danger" role="alert">
                     <a href="#" class="close" data-dismiss="alert" aria-label="close" style="font-family:Exo;">×</a>

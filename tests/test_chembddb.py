@@ -16,7 +16,7 @@ def test_connect_mysql(host,user,pw,res):
     cur,all_dbs=chembddb.connect_mysql(host,user,pw)
     assert type(cur) is res
 
-@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','','ben','Success'),('127.0.0.1','root','aditya123','ben','Failed! Database already exists.')])
+@pytest.mark.parametrize("host,user,pw,db,res",[('127.0.0.1','root','','ben','Success'),('127.0.0.1','root','','ben','Failed! Database already exists.')])
 def test_setup(host,user,pw,db,res):
     result = chembddb.setup(host=host,user=user,pw=pw,db=db)
     assert result == res
